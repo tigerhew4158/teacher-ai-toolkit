@@ -1,5 +1,5 @@
 const App = (() => {
-  const LS = 'teacher_ai_toolkit_vercel_v3_5';
+  const LS = 'teacher_ai_toolkit_vercel_v3_6';
   const REMOVE_BG_API_URL = 'https://api.onlinesysweb.com/api/remove-bg';
   let state = load();
   let currentToolFilter = '全部';
@@ -72,7 +72,7 @@ const App = (() => {
     app.innerHTML = `
       <section class="hero">
         <div>
-          <div class="badge">Vercel v3.5｜PDF.js+OCR正式读取版</div>
+          <div class="badge">Vercel v3.6｜专业老师出题Prompt版</div>
           <h1>老师专用的 AI 教学工具包订购网站</h1>
           <p>老师不用学习复杂 Prompt，只要注册、订购、付款确认，就能开通自己的教学工具包：出题、备课、切图、课堂游戏、评语、图片分类等。</p>
           <div class="row">
@@ -579,16 +579,75 @@ const App = (() => {
     }
   }
 
-  function questionFromSource(i, source, type, level, focus){
-    const clean=(source||'').replace(/\s+/g,' ').slice(0,140);
-    const key=(clean.match(/[\u4e00-\u9fa5]{2,8}|[A-Za-z]{4,}/)||['重点'])[0];
-    const stem = focus ? `${clean}（重点：${focus}）` : clean;
-    if(type==='mcq') return `${i}. 选择题：根据PDF内容，关于「${key}」，下列哪一项最符合原文？\nA. ${stem}\nB. 与原文无关的说法\nC. 与原文相反的说法\nD. 原文完全没有提到\n答案：A\n解析：此题根据PDF中「${clean}」相关内容生成。\n`;
-    if(type==='tf') return `${i}. 是非题：PDF内容有提到「${key}」相关概念。\n答案：是\n解析：系统从PDF重点句中识别到相关内容：${clean}\n`;
-    if(type==='blank') return `${i}. 填充题：根据PDF内容，重点关键词之一是「______」。\n答案：${key}\n解析：此关键词来自PDF内容：${clean}\n`;
-    if(type==='short') return `${i}. 简答题：请根据PDF内容，说明「${key}」的意思或重要性。\n参考答案：学生应围绕以下内容作答：${clean}\n评分建议：提到关键词1分，能说明内容2分，能结合例子3分。\n`;
+  function getTeacherQuestionPrompt(){
+    return `你是一位专业的相关领域教学老师，具备丰富的教材分析、课程设计与考试命题经验。
+
+请根据我提供的 PDF 教材内容，读取并理解其中的知识点、概念、重点说明、例子与学习目标，然后依照以下要求设计题库。
+
+【出题原则】
+1. 题目必须根据 PDF 内容出题，不可脱离教材范围。
+2. 题目要符合学生的年级与认知程度。
+3. 题目需要包含常识类知识点，让学生能理解并应用，而不是只考死背。
+4. 题目难度要分为：
+   - 容易：基础概念、关键词、事实记忆
+   - 中等：理解内容、解释原因、比较差异、应用例子
+   - 困难：综合判断、情境应用、推理分析、开放思考
+5. 题目表达要清楚、简洁、适合直接放入试卷。
+6. 不要出模糊、无法从 PDF 内容判断答案的题目。
+7. 若 PDF 内容不足，请根据已有内容合理出题，但必须标明「依据资料推论」。
+
+【输出格式】
+第一部分：《学生题目卷》只显示题目，不显示答案。
+第二部分：《教师答案卷》提供标准答案与简短解析。
+
+【题目比例】
+如果没有特别指定，请依以下比例出题：
+容易题 30%，中等题 50%，困难题 20%。`;
+  }
+
+  function difficultyForIndex(i,total){
+    const easy=Math.max(1,Math.round(total*0.3));
+    const medium=Math.max(1,Math.round(total*0.5));
+    if(i<=easy) return '容易';
+    if(i<=easy+medium) return '中等';
+    return '困难';
+  }
+
+  function questionTypeFor(type,i){
+    if(type!=='mixed') return type;
     const types=['mcq','tf','blank','short'];
-    return questionFromSource(i, source, types[(i-1)%types.length], level, focus);
+    return types[(i-1)%types.length];
+  }
+
+  function questionLabel(type){
+    return {mcq:'选择题',tf:'是非题',blank:'填充题',short:'简答题',mixed:'混合题型'}[type]||'题目';
+  }
+
+  function sourceKeyword(source){
+    return ((source||'').match(/[\u4e00-\u9fa5]{2,8}|[A-Za-z]{4,}/)||['重点'])[0];
+  }
+
+  function makeQuestionOnly(i, source, type, difficulty, focus){
+    const clean=(source||'').replace(/\s+/g,' ').slice(0,150);
+    const key=sourceKeyword(clean);
+    const scope=focus ? `（重点：${focus}）` : '';
+    if(type==='mcq'){
+      if(difficulty==='容易') return `${i}. 【选择题｜${difficulty}】根据PDF内容，关于「${key}」的说明，下列哪一项最正确？${scope}\nA. ${clean}\nB. 与PDF内容无关的说法\nC. 与PDF内容相反的说法\nD. PDF完全没有提到这个内容`;
+      if(difficulty==='中等') return `${i}. 【选择题｜${difficulty}】根据PDF内容，以下哪一项最能说明「${key}」在本课中的作用？${scope}\nA. ${clean}\nB. 它只是无关的补充资料\nC. 它与本课主题没有关系\nD. 它只适合背诵，不需要理解`;
+      return `${i}. 【选择题｜${difficulty}】如果学生要把「${key}」应用在生活或学习情境中，哪一种理解最合理？${scope}\nA. 先理解PDF中的重点，再结合实际例子说明\nB. 只记住字面，不需要解释\nC. 完全脱离PDF内容自由发挥\nD. 只看标题，不看内容`;
+    }
+    if(type==='tf') return `${i}. 【是非题｜${difficulty}】根据PDF内容，「${key}」是本课可以作为理解或复习的重点之一。`;
+    if(type==='blank') return `${i}. 【填充题｜${difficulty}】根据PDF内容，本题相关的重点关键词是「______」。提示：${clean.slice(0,60)}。`;
+    return `${i}. 【简答题｜${difficulty}】请根据PDF内容，说明「${key}」的意思、重要性或应用方式。${scope}`;
+  }
+
+  function makeAnswerOnly(i, source, type, difficulty){
+    const clean=(source||'').replace(/\s+/g,' ').slice(0,180);
+    const key=sourceKeyword(clean);
+    if(type==='mcq') return `${i}. 答案：A\n解析：A项最符合PDF内容。依据内容：「${clean}」。`;
+    if(type==='tf') return `${i}. 答案：正确\n解析：PDF内容中出现并说明了「${key}」相关重点，可作为本题判断依据。`;
+    if(type==='blank') return `${i}. 答案：${key}\n解析：此关键词来自PDF内容：「${clean}」。`;
+    return `${i}. 参考答案：学生应能围绕「${key}」作答，并结合PDF内容说明：${clean}\n评分建议：提到关键词1分，能说明意思2分，能结合例子或应用3分。`;
   }
 
   function generateQB(){
@@ -596,7 +655,7 @@ const App = (() => {
     const sub=$('qbSub')?.value||'综合';
     const grade=$('qbGrade')?.value||'学生';
     const count=Math.max(1, Math.min(50, Number($('qbCount')?.value||10)));
-    const level=$('qbLevel')?.value||'中等';
+    const selectedLevel=$('qbLevel')?.value||'中等';
     const type=$('qbType')?.value||'mixed';
     const focus=$('qbFocus')?.value.trim()||'';
 
@@ -605,17 +664,32 @@ const App = (() => {
     }
 
     const sources=(data.sections&&data.sections.length?data.sections:data.keywords&&data.keywords.length?data.keywords:['请先上传可读取文字的PDF']);
-    let out=`${grade}${sub} PDF题库\n`;
-    out+=`来源PDF：${data.fileName||'尚未成功读取PDF'}\n`;
-    out+=`读取方式：${data.method||'-'}\n`;
-    out+=`题型：${$('qbType')?.selectedOptions?.[0]?.textContent||'混合题型'} ｜ 难度：${level} ｜ 题数：${count}\n`;
-    if(focus) out+=`出题重点：${focus}\n`;
-    out+=`\n【PDF分析摘要】\n${data.summary||'尚未读取PDF内容。'}\n\n【题库内容】\n`;
+
+    let studentPaper=`《学生题目卷》\n`;
+    studentPaper+=`科目：${sub}\n年级：${grade}\n来源PDF：${data.fileName||'尚未成功读取PDF'}\n`;
+    studentPaper+=`题型：${$('qbType')?.selectedOptions?.[0]?.textContent||'混合题型'} ｜ 题数：${count}\n`;
+    studentPaper+=`难度设计：容易30%，中等50%，困难20%`;
+    if(selectedLevel && selectedLevel!=='中等') studentPaper+=`（老师指定整体难度倾向：${selectedLevel}）`;
+    if(focus) studentPaper+=`\n出题重点：${focus}`;
+    studentPaper+=`\n\n注意：请根据题目作答，学生题目卷不显示答案。\n\n`;
+
+    let answerPaper=`《教师答案卷》\n`;
+    answerPaper+=`科目：${sub}\n年级：${grade}\n来源PDF：${data.fileName||'尚未成功读取PDF'}\n`;
+    answerPaper+=`读取方式：${data.method||'-'}\n`;
+    answerPaper+=`说明：答案卷包含标准答案与简短解析，方便老师批改。\n\n`;
+
     for(let i=1;i<=count;i++){
       const src=sources[(i-1)%sources.length];
-      out+=questionFromSource(i, src, type, level, focus)+'\n';
+      const qType=questionTypeFor(type,i);
+      let difficulty=difficultyForIndex(i,count);
+      if(selectedLevel==='容易' && i>Math.ceil(count*0.7)) difficulty='中等';
+      if(selectedLevel==='较难' && i>Math.ceil(count*0.4)) difficulty='困难';
+
+      studentPaper+=makeQuestionOnly(i, src, qType, difficulty, focus)+`\n\n`;
+      answerPaper+=`【${questionLabel(qType)}｜${difficulty}】\n`+makeAnswerOnly(i, src, qType, difficulty)+`\n\n`;
     }
-    out+=`【使用提醒】\n题目已根据目前读取到的 PDF 文字 / OCR 内容生成。请老师根据课堂需要再校对题目与答案。\n`;
+
+    const out=`${getTeacherQuestionPrompt()}\n\n==================================================\n${studentPaper}\n==================================================\n${answerPaper}\n==================================================\n【PDF分析摘要】\n${data.summary||'尚未读取PDF内容。'}\n\n【教师使用提醒】\n本题库已根据目前读取到的 PDF.js / OCR 内容生成。建议老师正式使用前检查题目、答案与PDF原文是否完全一致。`;
     $('qbOut').textContent=out;
     log('question-bank','generate',{outputCount:count,source:data.fileName?'pdf':'empty'});
   }
