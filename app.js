@@ -1,5 +1,5 @@
 const App = (() => {
-  const LS = 'teacher_ai_toolkit_vercel_v4_3';
+  const LS = 'teacher_ai_toolkit_vercel_v4_4';
   const REMOVE_BG_API_URL = 'https://api.onlinesysweb.com/api/remove-bg';
   const ADMIN_PASSWORD = 'admin123';
   let state = load();
@@ -15,6 +15,25 @@ const App = (() => {
     }
   });
   const adminEnterLoginFixV43=true;
+
+
+  document.addEventListener('click', function(e){
+    const target=e.target.closest('[data-route]');
+    if(target){
+      e.preventDefault();
+      go(target.getAttribute('data-route')||'home');
+      return;
+    }
+    const nav=e.target.closest('a[href^="#"]');
+    if(nav){
+      const h=nav.getAttribute('href').replace('#','');
+      if(['home','tools','pricing','peripherals','admin','orders','trial','profile'].includes(h)){
+        e.preventDefault();
+        go(h);
+      }
+    }
+  });
+  const homepageLinkFixV44=true;
 
   return {
       currentUserId:null,
@@ -58,23 +77,22 @@ const App = (() => {
     $('navLogout')?.classList.toggle('hidden', !logged);
   }
 
-  function go(page, params={}){
-    const app=$('app');
-    updateNav();
-    if(page==='home') return renderHome(app);
-    if(page==='catalog') return renderCatalog(app);
-    if(page==='toolkitDetail') return renderToolkitDetail(app, params.id);
-    if(page==='pricing') return renderPricing(app);
-    if(page==='products') return renderProducts(app);
-    if(page==='register') return renderRegister(app);
-    if(page==='verify') return renderVerify(app, params.email);
-    if(page==='login') return renderLogin(app);
-    if(page==='dashboard') return requireUser(()=>renderDashboard(app));
-    if(page==='orders') return requireUser(()=>renderOrders(app));
-    if(page==='adminTool') return requireAdmin(()=>renderTool(app, params.id, true));
-    if(page==='tool') return requireUser(()=>renderTool(app, params.id, false));
-    if(page==='checkout') return requireUser(()=>renderCheckout(app, params.id));
-    if(page==='admin') return renderAdmin(app);
+  function go(page='home'){
+    state.route=page || 'home';
+    save();
+    render();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function scrollToSection(id){
+    if(state.route!=='home'){
+      state.route='home';
+      save();
+      render();
+      setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth'}),80);
+    }else{
+      document.getElementById(id)?.scrollIntoView({behavior:'smooth'});
+    }
   }
   function requireUser(fn){ if(!state.currentUserId){toast('请先登入会员'); return renderLogin($('app'));} fn(); }
   function requireAdmin(fn){ if(!state.adminAuthed){toast('请先登入后台'); return renderAdmin($('app'));} fn(); }
@@ -83,7 +101,7 @@ const App = (() => {
     app.innerHTML = `
       <section class="hero">
         <div>
-          <div class="badge">Vercel v4.3｜后台登入稳定修正版</div>
+          <div class="badge">Vercel v4.4｜首页按钮连结修正版</div>
           <h1>老师专用的 AI 教学工具包订购网站</h1>
           <p>老师不用学习复杂 Prompt，只要注册、订购、付款确认，就能开通自己的教学工具包：出题、备课、切图、课堂游戏、评语、图片分类等。</p>
           <div class="row">
@@ -1581,5 +1599,5 @@ AI生成内容前要给它什么？|清楚指令
   function resetDemo(){ localStorage.removeItem(LS); state=seed(); save(); go('home'); }
 
   window.addEventListener('load',()=>go('home'));
-  return {go,setFilter,previewTool,requestTrial,register,verify,login,demoLogin,logout,placeOrder,generateQB,generateLesson,generateGame,previewImage,splitPreview,fakeDownloadZip,downloadText,log,adminLogin,adminLogout,adminTab,confirmOrder,cancelOrder,approveTrial,rejectTrial,viewToolkit,newToolkit,saveToolkit,editToolkit,deleteToolkit,previewReceipt,viewReceipt,previewToolkitCover,toggleToolkitStatusForm,toggleToolkitStatus,moveToolkit,resetDemo,quizScore,quizShowAnswer,quizNext,matchPick,spinWheel,checkQuest,showQuestAnswer,downloadGeneratedGame,showWheelAnswer,updateSubthemeOptions,previewGameAsset,startGeneratedGame,replayCurrentGame,enterGameFullscreen,toggleThemeMusic,finishCurrentGame,loadBgRemoveImage,downloadBgRemoved,updateRemoveLabels,fitCanvas,useSampleBgRemove,aiRemoveBackground,applyOutputBackground,callRealRemoveBgApi,saveRemoveBgApiUrl,resetBgRemoveTool,readQuestionPdf,forceReadSelectedPdf,clearQuestionPdf,loadSplitImage,generateImageSlices,downloadSlice,downloadAllSlicesZip,resetSplitter};
+  return {go,setFilter,previewTool,requestTrial,register,verify,login,demoLogin,logout,placeOrder,generateQB,generateLesson,generateGame,previewImage,splitPreview,fakeDownloadZip,downloadText,log,adminLogin,adminLogout,adminTab,confirmOrder,cancelOrder,approveTrial,rejectTrial,viewToolkit,newToolkit,saveToolkit,editToolkit,deleteToolkit,previewReceipt,viewReceipt,previewToolkitCover,toggleToolkitStatusForm,toggleToolkitStatus,moveToolkit,resetDemo,quizScore,quizShowAnswer,quizNext,matchPick,spinWheel,checkQuest,showQuestAnswer,downloadGeneratedGame,showWheelAnswer,updateSubthemeOptions,previewGameAsset,startGeneratedGame,replayCurrentGame,enterGameFullscreen,toggleThemeMusic,finishCurrentGame,loadBgRemoveImage,downloadBgRemoved,updateRemoveLabels,fitCanvas,useSampleBgRemove,aiRemoveBackground,applyOutputBackground,callRealRemoveBgApi,saveRemoveBgApiUrl,resetBgRemoveTool,readQuestionPdf,forceReadSelectedPdf,clearQuestionPdf,loadSplitImage,generateImageSlices,downloadSlice,downloadAllSlicesZip,resetSplitter,scrollToSection,render};
 })();
