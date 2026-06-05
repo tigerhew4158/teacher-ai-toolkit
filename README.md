@@ -182,3 +182,10 @@
 - 新增 `VERCEL_DEPLOY_GUIDE.md`。
 - AI去背景工具的真实 API 地址改成可由老师 / 管理员填写。
 - 前端可以部署 Vercel，真实 rembg 后端建议部署到 Render / Railway / AITPC / VPS。
+
+
+## Vercel v3.1 更新内容
+- AI去背景工具包已固定使用系统 API：
+  `https://api.onlinesysweb.com/api/remove-bg`
+- 前端不再要求用户输入 API 地址。
+- 若 Vercel 网站是 HTTPS，api.onlinesysweb.com 也必须启用 HTTPS，否则浏览器会阻挡请求。
