@@ -1,5 +1,6 @@
 const App = (() => {
-  const LS = 'teacher_ai_toolkit_vercel_v3_0';
+  const LS = 'teacher_ai_toolkit_vercel_v3_2';
+  const REMOVE_BG_API_URL = 'https://api.onlinesysweb.com/api/remove-bg';
   let state = load();
   let currentToolFilter = '全部';
 
@@ -71,7 +72,7 @@ const App = (() => {
     app.innerHTML = `
       <section class="hero">
         <div>
-          <div class="badge">Vercel v3.0｜线上工具平台测试版</div>
+          <div class="badge">Vercel v3.2｜极简自动去背景</div>
           <h1>老师专用的 AI 教学工具包订购网站</h1>
           <p>老师不用学习复杂 Prompt，只要注册、订购、付款确认，就能开通自己的教学工具包：出题、备课、切图、课堂游戏、评语、图片分类等。</p>
           <div class="row">
@@ -877,23 +878,17 @@ AI生成内容前要给它什么？|清楚指令
   function splitPreview(){ const [r,c]=$('splitMode').value.split('x').map(Number); let html=`<div class="split-grid" style="grid-template-columns:repeat(${c},1fr)">`; for(let i=1;i<=r*c;i++) html+=`<div class="split-piece">${i}</div>`; html+='</div><p class="muted">这是切图布局预览。正式版会输出真实图片文件。</p>'; $('splitOut').innerHTML=html; log('image-splitter','preview',{outputCount:r*c}); }
   function fakeDownloadZip(){ log('image-splitter','download',{downloadCount:1}); toast('测试版已记录下载动作'); }
   function renderBackgroundRemover(app,t,adminMode=false){
-    app.innerHTML=adminToolBanner(t,adminMode)+`<div class="section-title"><div><h2>${t.name}</h2><p>真实 rembg API 版本：上传图片后，可呼叫本机 / 服务器的 rembg 去背景服务，输出透明 PNG；若 API 未启动，也保留前端模拟测试。</p></div></div>
-    <div class="toolbox removebg-style-tool">
-      <div class="remove-hero">
+    app.innerHTML=adminToolBanner(t,adminMode)+`<div class="section-title"><div><h2>${t.name}</h2><p>上传图片，系统自动去背景，完成后直接下载透明 PNG。</p></div></div>
+    <div class="toolbox removebg-simple-tool">
+      <div class="simple-remove-hero">
         <div>
           <div class="badge">AI Background Remover</div>
           <h2>上传图片，自动去背景</h2>
-          <p>适合老师制作 PPT 人物素材、教学图卡、海报、证书、活动宣传图。</p>
-          <div class="row wrap">
-            <label class="upload-big-btn">上传图片<input id="bgRemoveFile" type="file" accept="image/*" onchange="App.loadBgRemoveImage(event)" hidden></label>
-            <button class="ghost" onclick="App.useSampleBgRemove()">使用示例</button>
-          </div>
-          <p class="muted">支持：人物、产品、动物、教学素材。正式版会连接真正 AI 去背服务。</p>
+          <p>适合老师制作 PPT 人物素材、教学图卡、海报和活动宣传图。</p>
+          <label class="upload-big-btn">上传图片自动去背景<input id="bgRemoveFile" type="file" accept="image/*" onchange="App.loadBgRemoveImage(event)" hidden></label>
+          <p class="muted">上传后会自动呼叫系统去背景 API。无需填写任何网址。</p>
         </div>
-        <div class="remove-hero-demo">
-          <div class="demo-person">👩‍🏫</div>
-          <div class="demo-bg"></div>
-        </div>
+        <div class="remove-hero-demo"><div class="demo-person">🪄</div><div class="demo-bg"></div></div>
       </div>
 
       <div id="removeWorkspace" class="remove-workspace hidden">
@@ -906,64 +901,18 @@ AI生成内容前要给它什么？|清楚指令
           <div class="card">
             <h3>去背景结果</h3>
             <div class="image-frame checker"><canvas id="bgRemoveCanvas"></canvas></div>
+            <div id="realApiStatus" class="api-status muted">等待上传图片。</div>
             <div class="row wrap">
-              <button class="primary" onclick="App.callRealRemoveBgApi()">真实AI去背景/API</button>
-              <button class="soft" onclick="App.aiRemoveBackground()">前端模拟去背景</button>
+              <button class="primary" onclick="App.callRealRemoveBgApi()">重新去背景</button>
               <button class="ghost" onclick="App.downloadBgRemoved()">下载透明PNG</button>
             </div>
-            <div id="realApiStatus" class="api-status muted">真实API状态：尚未调用。请先设置去背景后端 API。</div>
-            <div class="field"><label>去背景API网址</label><input id="removeBgApiUrl" value="" placeholder="例如：https://你的后端网址.onrender.com/api/remove-bg" onchange="App.saveRemoveBgApiUrl()"></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>去背景设定</h3>
-          <div class="grid three">
-            <div class="field"><label>主体类型</label><select id="subjectType">
-              <option value="auto">自动判断</option>
-              <option value="person">人物 / 老师</option>
-              <option value="object">物品 / 教具</option>
-              <option value="animal">动物 / 角色</option>
-            </select></div>
-            <div class="field"><label>边缘平滑</label><input id="edgeSmooth" type="range" min="0" max="10" value="5" oninput="App.updateRemoveLabels()"><p class="muted">数值：<strong id="edgeSmoothLabel">5</strong></p></div>
-            <div class="field"><label>保留主体强度</label><input id="subjectKeep" type="range" min="20" max="95" value="62" oninput="App.updateRemoveLabels()"><p class="muted">数值：<strong id="subjectKeepLabel">62</strong></p></div>
-          </div>
-          <div class="grid three">
-            <div class="field"><label>输出背景</label><select id="outputBg" onchange="App.applyOutputBackground()">
-              <option value="transparent">透明背景</option>
-              <option value="white">白色背景</option>
-              <option value="blue">蓝色背景</option>
-              <option value="pink">粉色背景</option>
-              <option value="custom">自选颜色</option>
-            </select></div>
-            <div class="field"><label>自选颜色</label><input id="customBgColor" type="color" value="#ffffff" onchange="App.applyOutputBackground()"></div>
-            <div class="field"><label>正式版API模式</label><select id="removeApiMode">
-              <option>本地 rembg API</option>
-              <option>remove.bg API</option>
-              <option>自建服务器API</option>
-            </select></div>
-          </div>
-          <div class="api-note">
-            <strong>真实API说明：</strong>Vercel 前端可以直接线上使用；真实去背景需填写一个公开可访问的后端 API，例如 Render / Railway / AITPC 固定公网地址。若没有后端，可用「前端模拟去背景」先测试流程。
           </div>
         </div>
       </div>
     </div>`;
-    if($('removeBgApiUrl')) $('removeBgApiUrl').value=localStorage.getItem('remove_bg_api_url')||'';
     window.bgRemoveImage=null;
     window.bgRemovedReady=false;
     window.bgOriginalFileName='';
-  }
-
-  function saveRemoveBgApiUrl(){
-    const url=($('removeBgApiUrl')?.value||'').trim();
-    localStorage.setItem('remove_bg_api_url', url);
-    toast('去背景API网址已储存');
-  }
-
-  function updateRemoveLabels(){
-    if($('edgeSmoothLabel')) $('edgeSmoothLabel').textContent=$('edgeSmooth')?.value||5;
-    if($('subjectKeepLabel')) $('subjectKeepLabel').textContent=$('subjectKeep')?.value||62;
   }
 
   function fitCanvas(canvas,img,max=900){
@@ -987,105 +936,10 @@ AI生成内容前要给它什么？|清楚指令
       fitCanvas($('bgRemoveCanvas'),img);
       window.bgRemovedReady=false;
       $('bgRemoveInfo').innerHTML=`已载入：<strong>${file.name}</strong> ｜ ${$('bgOriginalCanvas').width} × ${$('bgOriginalCanvas').height}`;
-      toast('图片已载入，可点击 AI自动去背景');
+      $('realApiStatus').innerHTML='图片已上传，正在自动去背景...';
+      callRealRemoveBgApi();
     };
     img.src=URL.createObjectURL(file);
-  }
-
-  function useSampleBgRemove(){
-    const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="700" height="460">
-      <defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#bfdbfe"/><stop offset="1" stop-color="#fbcfe8"/></linearGradient></defs>
-      <rect width="700" height="460" fill="url(#g)"/>
-      <circle cx="350" cy="145" r="62" fill="#f8c8a8"/>
-      <rect x="265" y="205" width="170" height="155" rx="45" fill="#e11d48"/>
-      <rect x="215" y="240" width="70" height="125" rx="30" fill="#f8c8a8"/>
-      <rect x="415" y="240" width="70" height="125" rx="30" fill="#f8c8a8"/>
-      <rect x="285" y="82" width="130" height="55" rx="28" fill="#111827"/>
-      <text x="350" y="420" text-anchor="middle" font-size="32" font-family="Arial" fill="#1e3a8a">Teacher Sample</text>
-    </svg>`;
-    const img=new Image();
-    img.onload=()=>{
-      window.bgRemoveImage=img;
-      window.bgOriginalFileName='teacher-sample.png';
-      $('removeWorkspace')?.classList.remove('hidden');
-      fitCanvas($('bgOriginalCanvas'),img);
-      fitCanvas($('bgRemoveCanvas'),img);
-      $('bgRemoveInfo').innerHTML=`已载入示例图片`;
-      window.bgRemovedReady=false;
-    };
-    img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
-  }
-
-  function sampleCorners(data,w,h){
-    const points=[];
-    const size=Math.max(4,Math.floor(Math.min(w,h)*0.08));
-    const zones=[[0,0],[w-size,0],[0,h-size],[w-size,h-size]];
-    zones.forEach(([sx,sy])=>{
-      for(let y=sy;y<sy+size;y+=2){
-        for(let x=sx;x<sx+size;x+=2){
-          const i=(y*w+x)*4; points.push([data[i],data[i+1],data[i+2]]);
-        }
-      }
-    });
-    const avg=[0,0,0];
-    points.forEach(p=>{avg[0]+=p[0];avg[1]+=p[1];avg[2]+=p[2];});
-    avg[0]/=points.length; avg[1]/=points.length; avg[2]/=points.length;
-    return avg;
-  }
-
-  function aiRemoveBackground(){
-    const canvas=$('bgRemoveCanvas');
-    if(!canvas || !window.bgRemoveImage) return toast('请先上传图片');
-    fitCanvas(canvas,window.bgRemoveImage);
-    const ctx=canvas.getContext('2d');
-    const imgData=ctx.getImageData(0,0,canvas.width,canvas.height);
-    const data=imgData.data, w=canvas.width, h=canvas.height;
-    const bg=sampleCorners(data,w,h);
-    const keep=Number($('subjectKeep')?.value||62);
-    const smooth=Number($('edgeSmooth')?.value||5);
-    const subject=$('subjectType')?.value||'auto';
-
-    const centerX=w/2, centerY=h/2;
-    const rx=subject==='person'?w*.30:subject==='object'?w*.36:w*.34;
-    const ry=subject==='person'?h*.44:subject==='animal'?h*.38:h*.36;
-    let removed=0;
-
-    for(let y=0;y<h;y++){
-      for(let x=0;x<w;x++){
-        const i=(y*w+x)*4;
-        const colorDist=Math.sqrt((data[i]-bg[0])**2+(data[i+1]-bg[1])**2+(data[i+2]-bg[2])**2);
-        const dx=(x-centerX)/rx, dy=(y-centerY)/ry;
-        const centerMask=Math.max(0,1-(dx*dx+dy*dy));
-        const edgeBias=Math.min(x,y,w-x,h-y)/Math.min(w,h);
-        const removeScore=(255-colorDist)*0.55 + (1-centerMask)*keep + (0.18-edgeBias)*120;
-        const threshold=subject==='person'?118:108;
-        if(removeScore>threshold){
-          const alpha=Math.max(0, Math.min(255, 255-(removeScore-threshold)*(2.8+smooth*.25)));
-          data[i+3]=alpha;
-          if(alpha<30){data[i+3]=0; removed++;}
-        }
-      }
-    }
-    ctx.putImageData(imgData,0,0);
-    window.bgRemovedReady=true;
-    applyOutputBackground();
-    $('bgRemoveInfo').innerHTML=`已完成AI去背景模拟｜主体类型：${$('subjectType').selectedOptions[0].textContent}｜去除像素约 ${removed}`;
-    log('background-remover','ai-remove',{outputCount:1});
-  }
-
-  function applyOutputBackground(){
-    const wrap=document.querySelector('.checker');
-    if(!wrap) return;
-    const mode=$('outputBg')?.value||'transparent';
-    const colorMap={transparent:'',white:'#ffffff',blue:'#dbeafe',pink:'#fce7f3'};
-    const color=mode==='custom' ? $('customBgColor')?.value : colorMap[mode];
-    if(mode==='transparent'){
-      wrap.style.backgroundImage='';
-      wrap.style.backgroundColor='';
-    }else{
-      wrap.style.backgroundImage='none';
-      wrap.style.backgroundColor=color;
-    }
   }
 
   async function callRealRemoveBgApi(){
@@ -1093,13 +947,13 @@ AI生成内容前要给它什么？|清楚指令
     const file=input?.files?.[0];
     if(!file) return toast('请先上传图片');
     const status=$('realApiStatus');
-    if(status) status.innerHTML='真实API状态：正在上传图片并去背景...';
+    if(status) status.innerHTML='正在去背景，请稍候...';
     const form=new FormData();
     form.append('image', file);
-    form.append('output_bg', $('outputBg')?.value||'transparent');
-    form.append('custom_color', $('customBgColor')?.value||'#ffffff');
+    form.append('output_bg', 'transparent');
+    form.append('custom_color', '#ffffff');
     try{
-      const res=await fetch((localStorage.getItem('remove_bg_api_url')||'http://127.0.0.1:8000/api/remove-bg'), {method:'POST', body:form});
+      const res=await fetch(REMOVE_BG_API_URL, {method:'POST', body:form});
       if(!res.ok){
         const txt=await res.text();
         throw new Error(txt||('HTTP '+res.status));
@@ -1114,28 +968,34 @@ AI生成内容前要给它什么？|清楚指令
         ctx.clearRect(0,0,canvas.width,canvas.height);
         ctx.drawImage(img,0,0);
         window.bgRemovedReady=true;
-        if(status) status.innerHTML='真实API状态：<strong>已完成真实 rembg 去背景</strong>';
-        $('bgRemoveInfo').innerHTML=`真实 rembg API 已完成｜输出 ${canvas.width} × ${canvas.height}`;
+        if(status) status.innerHTML='已完成去背景，可以下载透明 PNG。';
+        $('bgRemoveInfo').innerHTML=`去背景完成｜输出 ${canvas.width} × ${canvas.height}`;
         log('background-remover','real-api-remove',{outputCount:1});
-        toast('真实AI去背景完成');
+        toast('去背景完成');
       };
       img.src=URL.createObjectURL(blob);
     }catch(err){
-      if(status) status.innerHTML=`真实API状态：<strong class="warn-text">调用失败</strong>｜${err.message}<br>请确认 backend/remove_bg_service 已启动，或先用「前端模拟去背景」。`;
-      toast('真实API调用失败，请检查后端服务');
+      if(status) status.innerHTML=`调用失败：${err.message}<br>请确认 api.onlinesysweb.com 已启用 HTTPS，并且后端服务正常。`;
+      toast('去背景失败，请检查 API 服务');
     }
   }
 
   function downloadBgRemoved(){
     const canvas=$('bgRemoveCanvas');
     if(!canvas || !window.bgRemoveImage) return toast('请先上传图片');
-    if(!window.bgRemovedReady) return toast('请先点击 AI自动去背景');
+    if(!window.bgRemovedReady) return toast('去背景还没完成');
     const a=document.createElement('a');
     a.href=canvas.toDataURL('image/png');
     a.download=(window.bgOriginalFileName||'image').replace(/\.[^.]+$/,'')+'-removed-bg.png';
     a.click();
     log('background-remover','download',{downloadCount:1});
   }
+
+  function saveRemoveBgApiUrl(){ toast('API 已由系统固定设定'); }
+  function updateRemoveLabels(){}
+  function useSampleBgRemove(){}
+  function aiRemoveBackground(){ callRealRemoveBgApi(); }
+  function applyOutputBackground(){}
 
   function renderGenericTool(app,t,adminMode=false){ app.innerHTML=adminToolBanner(t,adminMode)+`<div class="card"><h2>${t.name}</h2><p>${t.desc}</p><div class="toolbox"><p>这个工具的操作界面会在下一版细化。当前已可测试订购、开通与使用记录。</p><button onclick="App.log('${t.id}','open')">记录一次使用</button></div></div>`; }
   function downloadText(filename,outId){ const text=$(outId)?.textContent||''; if(!text) return toast('请先生成内容'); const blob=new Blob([text],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); log(outId.includes('qb')?'question-bank':'lesson-planner','download',{downloadCount:1}); }

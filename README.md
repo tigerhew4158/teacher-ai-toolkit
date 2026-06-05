@@ -189,3 +189,10 @@
   `https://api.onlinesysweb.com/api/remove-bg`
 - 前端不再要求用户输入 API 地址。
 - 若 Vercel 网站是 HTTPS，api.onlinesysweb.com 也必须启用 HTTPS，否则浏览器会阻挡请求。
+
+
+## Vercel v3.2 更新内容
+- AI去背景工具包改成极简流程。
+- 老师只需要上传图片，系统会自动去背景。
+- 隐藏 API 网址、API 模式、主体类型、边缘平滑、输出背景等复杂设定。
+- 保留「重新去背景」与「下载透明PNG」两个必要按钮。
