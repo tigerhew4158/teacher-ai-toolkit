@@ -1,5 +1,5 @@
 const App = (() => {
-  const LS = 'teacher_ai_toolkit_vercel_v4_0';
+  const LS = 'teacher_ai_toolkit_vercel_v4_1';
   const REMOVE_BG_API_URL = 'https://api.onlinesysweb.com/api/remove-bg';
   let state = load();
   let currentToolFilter = '全部';
@@ -72,7 +72,7 @@ const App = (() => {
     app.innerHTML = `
       <section class="hero">
         <div>
-          <div class="badge">Vercel v4.0｜强制隐藏Prompt版</div>
+          <div class="badge">Vercel v4.1｜真实切图预览下载版</div>
           <h1>老师专用的 AI 教学工具包订购网站</h1>
           <p>老师不用学习复杂 Prompt，只要注册、订购、付款确认，就能开通自己的教学工具包：出题、备课、切图、课堂游戏、评语、图片分类等。</p>
           <div class="row">
@@ -1160,137 +1160,176 @@ AI生成内容前要给它什么？|清楚指令
     log('classroom-game','download',{downloadCount:1,theme:g.theme,subtheme:g.subtheme});
   }
 
-  function renderImageSplitter(app,t,adminMode=false){ app.innerHTML=adminToolBanner(t,adminMode)+`<div class="section-title"><div><h2>${t.name}</h2><p>测试版先显示切图预览格，正式版可真正切割并下载ZIP。</p></div></div><div class="toolbox"><div class="field"><label>上传图片</label><input id="imgFile" type="file" accept="image/*" onchange="App.previewImage(event)"></div><img id="imgPrev" class="preview-img hidden"><div class="field"><label>切割方式</label><select id="splitMode"><option value="2x2">2×2</option><option value="1x2">1×2</option><option value="3x3">3×3</option><option value="4x4">4×4</option></select></div><button class="primary" onclick="App.splitPreview()">生成切图预览</button><button class="ghost" onclick="App.fakeDownloadZip()">下载ZIP测试</button><div id="splitOut" style="margin-top:14px"></div></div>`; }
-  function previewImage(e){ const f=e.target.files[0]; if(!f) return; const img=$('imgPrev'); img.src=URL.createObjectURL(f); img.classList.remove('hidden'); }
-  function splitPreview(){ const [r,c]=$('splitMode').value.split('x').map(Number); let html=`<div class="split-grid" style="grid-template-columns:repeat(${c},1fr)">`; for(let i=1;i<=r*c;i++) html+=`<div class="split-piece">${i}</div>`; html+='</div><p class="muted">这是切图布局预览。正式版会输出真实图片文件。</p>'; $('splitOut').innerHTML=html; log('image-splitter','preview',{outputCount:r*c}); }
-  function fakeDownloadZip(){ log('image-splitter','download',{downloadCount:1}); toast('测试版已记录下载动作'); }
-  function renderBackgroundRemover(app,t,adminMode=false){
-    app.innerHTML=adminToolBanner(t,adminMode)+`<div class="simple-bg-page">
-      <div class="simple-bg-header">
-        <h2>AI去背景工具包</h2>
-        <p>上传图片后，点击「去背景」，完成后下载透明 PNG。</p>
+  function renderImageSplitter(app,t,adminMode=false){
+    app.innerHTML=adminToolBanner(t,adminMode)+`<div class="section-title"><div><h2>${t.name}</h2><p>上传图片后，系统会依照选择的切割方式，直接切成多张小图给老师预览与下载。</p></div></div>
+    <div class="toolbox splitter-tool">
+      <div class="card soft-card">
+        <h3>上传图片并选择切割方式</h3>
+        <div class="grid three">
+          <div class="field"><label>上传图片</label><input id="splitImageFile" type="file" accept="image/*" onchange="App.loadSplitImage(event)"></div>
+          <div class="field"><label>切割方式</label><select id="splitMode" onchange="App.generateImageSlices()">
+            <option value="1x2">1 × 2</option>
+            <option value="2x1">2 × 1</option>
+            <option value="2x2" selected>2 × 2</option>
+            <option value="3x1">3 × 1</option>
+            <option value="1x3">1 × 3</option>
+            <option value="3x2">3 × 2</option>
+            <option value="2x3">2 × 3</option>
+            <option value="3x3">3 × 3</option>
+            <option value="4x4">4 × 4</option>
+          </select></div>
+          <div class="field"><label>输出格式</label><select id="splitFormat" onchange="App.generateImageSlices()">
+            <option value="png">PNG</option>
+            <option value="jpeg">JPG</option>
+          </select></div>
+        </div>
+        <div class="row wrap">
+          <button class="primary" onclick="App.generateImageSlices()">直接切图预览</button>
+          <button class="ghost" onclick="App.downloadAllSlicesZip()">下载全部ZIP</button>
+          <button class="soft" onclick="App.resetSplitter()">重新上传</button>
+        </div>
+        <div id="splitInfo" class="pdf-info muted">尚未上传图片。</div>
       </div>
 
-      <div class="simple-upload-bar">
-        <label class="upload-big-btn">上传图片<input id="bgRemoveFile" type="file" accept="image/*" onchange="App.loadBgRemoveImage(event)" hidden></label>
-        <button class="primary" onclick="App.callRealRemoveBgApi()">去背景</button>
-        <button class="soft" onclick="App.resetBgRemoveTool()">重新</button>
-        <button class="ghost" onclick="App.downloadBgRemoved()">下载透明PNG</button>
-      </div>
-
-      <div id="removeWorkspace" class="simple-remove-workspace">
-        <div class="grid two">
-          <div class="card clean-card">
-            <h3>原图</h3>
-            <div class="image-frame clean-frame"><canvas id="bgOriginalCanvas"></canvas></div>
-          </div>
-          <div class="card clean-card">
-            <h3>去背景结果</h3>
-            <div class="image-frame checker"><canvas id="bgRemoveCanvas"></canvas></div>
-          </div>
+      <div class="grid two">
+        <div class="card">
+          <h3>原图</h3>
+          <div class="split-original-wrap"><canvas id="splitOriginalCanvas"></canvas></div>
+        </div>
+        <div class="card">
+          <h3>切图结果</h3>
+          <div id="splitPreview" class="split-preview-empty">切图后会显示在这里。</div>
         </div>
       </div>
-
-      <div id="simpleBgMessage" class="simple-bg-message">请先上传图片。</div>
     </div>`;
-    window.bgRemoveImage=null;
-    window.bgRemovedReady=false;
-    window.bgOriginalFileName='';
+    window.splitImage=null;
+    window.splitSlices=[];
+    window.splitFileName='image';
   }
 
-  function fitCanvas(canvas,img,max=900){
-    const scale=Math.min(1,max/img.width);
-    canvas.width=Math.round(img.width*scale);
-    canvas.height=Math.round(img.height*scale);
-    const ctx=canvas.getContext('2d');
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.drawImage(img,0,0,canvas.width,canvas.height);
-  }
-
-  function loadBgRemoveImage(event){
+  function loadSplitImage(event){
     const file=event.target.files?.[0];
     if(!file) return;
     const img=new Image();
     img.onload=()=>{
-      window.bgRemoveImage=img;
-      window.bgOriginalFileName=file.name;
-      fitCanvas($('bgOriginalCanvas'),img);
-      fitCanvas($('bgRemoveCanvas'),img);
-      window.bgRemovedReady=false;
-      if($('simpleBgMessage')) $('simpleBgMessage').textContent='图片已上传，请点击「去背景」。';
+      window.splitImage=img;
+      window.splitFileName=(file.name||'image').replace(/\.[^.]+$/,'');
+      const canvas=$('splitOriginalCanvas');
+      const ctx=canvas.getContext('2d');
+      const maxW=720;
+      const scale=Math.min(1,maxW/img.width);
+      canvas.width=Math.round(img.width*scale);
+      canvas.height=Math.round(img.height*scale);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      $('splitInfo').innerHTML=`已载入：<strong>${file.name}</strong> ｜ 原图 ${img.width} × ${img.height}`;
+      generateImageSlices();
     };
     img.src=URL.createObjectURL(file);
   }
 
-  async function callRealRemoveBgApi(){
-    const input=$('bgRemoveFile');
-    const file=input?.files?.[0];
-    if(!file) return toast('请先上传图片');
-    if($('simpleBgMessage')) $('simpleBgMessage').textContent='正在去背景，请稍候...';
-    const form=new FormData();
-    form.append('image', file);
-    form.append('output_bg', 'transparent');
-    form.append('custom_color', '#ffffff');
-    try{
-      const res=await fetch(REMOVE_BG_API_URL, {method:'POST', body:form});
-      if(!res.ok){
-        const txt=await res.text();
-        throw new Error(txt||('HTTP '+res.status));
-      }
-      const blob=await res.blob();
-      const img=new Image();
-      img.onload=()=>{
-        const canvas=$('bgRemoveCanvas');
-        canvas.width=img.width;
-        canvas.height=img.height;
-        const ctx=canvas.getContext('2d');
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        ctx.drawImage(img,0,0);
-        window.bgRemovedReady=true;
-        if($('simpleBgMessage')) $('simpleBgMessage').textContent='去背景完成，可以下载透明 PNG。';
-        log('background-remover','real-api-remove',{outputCount:1});
-        toast('去背景完成');
-      };
-      img.src=URL.createObjectURL(blob);
-    }catch(err){
-      if($('simpleBgMessage')) $('simpleBgMessage').textContent='去背景失败，请稍后再试。';
-      toast('去背景失败，请检查 API 服务');
+  function parseSplitMode(){
+    const [cols,rows]=($('splitMode')?.value||'2x2').split('x').map(Number);
+    return {cols:cols||2, rows:rows||2};
+  }
+
+  function generateImageSlices(){
+    const img=window.splitImage;
+    if(!img){
+      if($('splitPreview')) $('splitPreview').innerHTML='<div class="split-preview-empty">请先上传图片。</div>';
+      return;
     }
-  }
-
-  function resetBgRemoveTool(){
-    window.bgRemoveImage=null;
-    window.bgRemovedReady=false;
-    window.bgOriginalFileName='';
-    if($('bgRemoveFile')) $('bgRemoveFile').value='';
-    ['bgOriginalCanvas','bgRemoveCanvas'].forEach(id=>{
-      const c=$(id);
-      if(c){
-        const ctx=c.getContext('2d');
-        ctx.clearRect(0,0,c.width,c.height);
-        c.width=0;
-        c.height=0;
+    const {cols,rows}=parseSplitMode();
+    const format=$('splitFormat')?.value||'png';
+    const mime=format==='jpeg'?'image/jpeg':'image/png';
+    const sourceW=img.width, sourceH=img.height;
+    const tileW=Math.floor(sourceW/cols);
+    const tileH=Math.floor(sourceH/rows);
+    const slices=[];
+    let html=`<div class="split-grid" style="grid-template-columns:repeat(${cols},minmax(80px,1fr))">`;
+    let index=1;
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const sx=c*tileW, sy=r*tileH;
+        const sw=(c===cols-1)?sourceW-sx:tileW;
+        const sh=(r===rows-1)?sourceH-sy:tileH;
+        const canvas=document.createElement('canvas');
+        canvas.width=sw; canvas.height=sh;
+        canvas.getContext('2d').drawImage(img,sx,sy,sw,sh,0,0,sw,sh);
+        const dataUrl=canvas.toDataURL(mime,0.92);
+        const filename=`${window.splitFileName}_切图_${String(index).padStart(2,'0')}.${format==='jpeg'?'jpg':'png'}`;
+        slices.push({index,filename,dataUrl,width:sw,height:sh});
+        html+=`<div class="slice-card">
+          <img src="${dataUrl}" alt="切图${index}">
+          <div class="slice-meta"><strong>${index}</strong><span>${sw}×${sh}</span></div>
+          <button class="ghost tiny" onclick="App.downloadSlice(${index-1})">下载这张</button>
+        </div>`;
+        index++;
       }
-    });
-    if($('simpleBgMessage')) $('simpleBgMessage').textContent='请先上传图片。';
+    }
+    html+='</div>';
+    window.splitSlices=slices;
+    $('splitPreview').innerHTML=html;
+    $('splitInfo').innerHTML=`已切成 <strong>${cols} × ${rows}</strong>，共 <strong>${slices.length}</strong> 张小图。`;
+    log('image-splitter','split',{outputCount:slices.length});
   }
 
-  function downloadBgRemoved(){
-    const canvas=$('bgRemoveCanvas');
-    if(!canvas || !window.bgRemoveImage) return toast('请先上传图片');
-    if(!window.bgRemovedReady) return toast('去背景还没完成');
+  function dataUrlToBytes(dataUrl){
+    const bin=atob(dataUrl.split(',')[1]);
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+    return bytes;
+  }
+
+  function downloadSlice(i){
+    const slice=window.splitSlices?.[i];
+    if(!slice) return toast('请先切图');
     const a=document.createElement('a');
-    a.href=canvas.toDataURL('image/png');
-    a.download=(window.bgOriginalFileName||'image').replace(/\.[^.]+$/,'')+'-removed-bg.png';
-    a.click();
-    log('background-remover','download',{downloadCount:1});
+    a.href=slice.dataUrl; a.download=slice.filename; a.click();
+    log('image-splitter','download-one',{downloadCount:1});
   }
 
-  function saveRemoveBgApiUrl(){ toast('API 已由系统固定设定'); }
-  function updateRemoveLabels(){}
-  function useSampleBgRemove(){}
-  function aiRemoveBackground(){ callRealRemoveBgApi(); }
-  function applyOutputBackground(){}
+  function makeZipStore(files){
+    const encoder=new TextEncoder();
+    let offset=0, chunks=[], central=[];
+    const u16=n=>[n&255,(n>>8)&255], u32=n=>[n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255];
+    function crc32(bytes){let c=~0;for(let i=0;i<bytes.length;i++){c^=bytes[i];for(let k=0;k<8;k++)c=(c>>>1)^(0xEDB88320&-(c&1));}return(~c)>>>0;}
+    files.forEach(f=>{
+      const nameBytes=encoder.encode(f.name), data=f.bytes, crc=crc32(data);
+      const local=new Uint8Array([...u32(0x04034b50),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(crc),...u32(data.length),...u32(data.length),...u16(nameBytes.length),...u16(0)]);
+      chunks.push(local,nameBytes,data);
+      central.push({nameBytes,crc,size:data.length,offset});
+      offset+=local.length+nameBytes.length+data.length;
+    });
+    let centralSize=0;
+    central.forEach(c=>{
+      const h=new Uint8Array([...u32(0x02014b50),...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),...u32(c.crc),...u32(c.size),...u32(c.size),...u16(c.nameBytes.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(c.offset)]);
+      chunks.push(h,c.nameBytes); centralSize+=h.length+c.nameBytes.length;
+    });
+    chunks.push(new Uint8Array([...u32(0x06054b50),...u16(0),...u16(0),...u16(central.length),...u16(central.length),...u32(centralSize),...u32(offset),...u16(0)]));
+    return new Blob(chunks,{type:'application/zip'});
+  }
+
+  function downloadAllSlicesZip(){
+    const slices=window.splitSlices||[];
+    if(!slices.length) return toast('请先切图');
+    const files=slices.map(s=>({name:s.filename,bytes:dataUrlToBytes(s.dataUrl)}));
+    const blob=makeZipStore(files);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download=`${window.splitFileName}_切图.zip`;
+    a.click();
+    log('image-splitter','download-zip',{downloadCount:slices.length});
+  }
+
+  function resetSplitter(){
+    window.splitImage=null; window.splitSlices=[]; window.splitFileName='image';
+    if($('splitImageFile')) $('splitImageFile').value='';
+    const c=$('splitOriginalCanvas');
+    if(c){ const ctx=c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height); c.width=0; c.height=0; }
+    if($('splitPreview')) $('splitPreview').innerHTML='<div class="split-preview-empty">切图后会显示在这里。</div>';
+    if($('splitInfo')) $('splitInfo').textContent='尚未上传图片。';
+  }
 
   function renderGenericTool(app,t,adminMode=false){ app.innerHTML=adminToolBanner(t,adminMode)+`<div class="card"><h2>${t.name}</h2><p>${t.desc}</p><div class="toolbox"><p>这个工具的操作界面会在下一版细化。当前已可测试订购、开通与使用记录。</p><button onclick="App.log('${t.id}','open')">记录一次使用</button></div></div>`; }
   function downloadText(filename,outId){ const text=$(outId)?.textContent||''; if(!text) return toast('请先生成内容'); const blob=new Blob([text],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); log(outId.includes('qb')?'question-bank':'lesson-planner','download',{downloadCount:1}); }
@@ -1504,5 +1543,5 @@ AI生成内容前要给它什么？|清楚指令
   function resetDemo(){ localStorage.removeItem(LS); state=seed(); save(); go('home'); }
 
   window.addEventListener('load',()=>go('home'));
-  return {go,setFilter,previewTool,requestTrial,register,verify,login,demoLogin,logout,placeOrder,generateQB,generateLesson,generateGame,previewImage,splitPreview,fakeDownloadZip,downloadText,log,adminLogin,adminLogout,adminTab,confirmOrder,cancelOrder,approveTrial,rejectTrial,viewToolkit,newToolkit,saveToolkit,editToolkit,deleteToolkit,previewReceipt,viewReceipt,previewToolkitCover,toggleToolkitStatusForm,toggleToolkitStatus,moveToolkit,resetDemo,quizScore,quizShowAnswer,quizNext,matchPick,spinWheel,checkQuest,showQuestAnswer,downloadGeneratedGame,showWheelAnswer,updateSubthemeOptions,previewGameAsset,startGeneratedGame,replayCurrentGame,enterGameFullscreen,toggleThemeMusic,finishCurrentGame,loadBgRemoveImage,downloadBgRemoved,updateRemoveLabels,fitCanvas,useSampleBgRemove,aiRemoveBackground,applyOutputBackground,callRealRemoveBgApi,saveRemoveBgApiUrl,resetBgRemoveTool,readQuestionPdf,forceReadSelectedPdf,clearQuestionPdf};
+  return {go,setFilter,previewTool,requestTrial,register,verify,login,demoLogin,logout,placeOrder,generateQB,generateLesson,generateGame,previewImage,splitPreview,fakeDownloadZip,downloadText,log,adminLogin,adminLogout,adminTab,confirmOrder,cancelOrder,approveTrial,rejectTrial,viewToolkit,newToolkit,saveToolkit,editToolkit,deleteToolkit,previewReceipt,viewReceipt,previewToolkitCover,toggleToolkitStatusForm,toggleToolkitStatus,moveToolkit,resetDemo,quizScore,quizShowAnswer,quizNext,matchPick,spinWheel,checkQuest,showQuestAnswer,downloadGeneratedGame,showWheelAnswer,updateSubthemeOptions,previewGameAsset,startGeneratedGame,replayCurrentGame,enterGameFullscreen,toggleThemeMusic,finishCurrentGame,loadBgRemoveImage,downloadBgRemoved,updateRemoveLabels,fitCanvas,useSampleBgRemove,aiRemoveBackground,applyOutputBackground,callRealRemoveBgApi,saveRemoveBgApiUrl,resetBgRemoveTool,readQuestionPdf,forceReadSelectedPdf,clearQuestionPdf,loadSplitImage,generateImageSlices,downloadSlice,downloadAllSlicesZip,resetSplitter};
 })();

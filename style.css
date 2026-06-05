@@ -452,3 +452,14 @@ input[type="range"]{width:100%}
 .pdf-text-preview{background:#0f172a;color:white;border-radius:14px;padding:14px;white-space:pre-wrap;max-height:360px;overflow:auto;line-height:1.65}
 .pdf-question-tool .tool-output{white-space:pre-wrap;max-height:560px;overflow:auto}
 .chip{display:inline-block;background:#eef2ff;color:#1e3a8a;border-radius:999px;padding:5px 10px;margin:3px;font-size:13px;font-weight:800}
+
+
+/* v4.1 real image splitter */
+.splitter-tool .split-original-wrap{background:#f8fafc;border:1px solid var(--border);border-radius:18px;min-height:260px;display:flex;align-items:center;justify-content:center;padding:12px}
+.splitter-tool canvas{max-width:100%;height:auto;border-radius:14px}
+.split-grid{display:grid;gap:8px}
+.slice-card{background:white;border:1px solid var(--border);border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:8px;align-items:center}
+.slice-card img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:10px;background:#f8fafc}
+.slice-meta{width:100%;display:flex;justify-content:space-between;gap:8px;color:#475569;font-size:13px}
+button.tiny{padding:7px 10px;font-size:12px;width:100%}
+.split-preview-empty{min-height:260px;display:flex;align-items:center;justify-content:center;color:#64748b;background:#f8fafc;border:1px dashed var(--border);border-radius:18px}
