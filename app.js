@@ -1,5 +1,5 @@
 const App = (() => {
-  const LS = 'teacher_ai_toolkit_vercel_v3_2';
+  const LS = 'teacher_ai_toolkit_vercel_v3_3';
   const REMOVE_BG_API_URL = 'https://api.onlinesysweb.com/api/remove-bg';
   let state = load();
   let currentToolFilter = '全部';
@@ -72,7 +72,7 @@ const App = (() => {
     app.innerHTML = `
       <section class="hero">
         <div>
-          <div class="badge">Vercel v3.2｜极简自动去背景</div>
+          <div class="badge">Vercel v3.3｜去背景极简三按钮版</div>
           <h1>老师专用的 AI 教学工具包订购网站</h1>
           <p>老师不用学习复杂 Prompt，只要注册、订购、付款确认，就能开通自己的教学工具包：出题、备课、切图、课堂游戏、评语、图片分类等。</p>
           <div class="row">
@@ -878,37 +878,33 @@ AI生成内容前要给它什么？|清楚指令
   function splitPreview(){ const [r,c]=$('splitMode').value.split('x').map(Number); let html=`<div class="split-grid" style="grid-template-columns:repeat(${c},1fr)">`; for(let i=1;i<=r*c;i++) html+=`<div class="split-piece">${i}</div>`; html+='</div><p class="muted">这是切图布局预览。正式版会输出真实图片文件。</p>'; $('splitOut').innerHTML=html; log('image-splitter','preview',{outputCount:r*c}); }
   function fakeDownloadZip(){ log('image-splitter','download',{downloadCount:1}); toast('测试版已记录下载动作'); }
   function renderBackgroundRemover(app,t,adminMode=false){
-    app.innerHTML=adminToolBanner(t,adminMode)+`<div class="section-title"><div><h2>${t.name}</h2><p>上传图片，系统自动去背景，完成后直接下载透明 PNG。</p></div></div>
-    <div class="toolbox removebg-simple-tool">
-      <div class="simple-remove-hero">
-        <div>
-          <div class="badge">AI Background Remover</div>
-          <h2>上传图片，自动去背景</h2>
-          <p>适合老师制作 PPT 人物素材、教学图卡、海报和活动宣传图。</p>
-          <label class="upload-big-btn">上传图片自动去背景<input id="bgRemoveFile" type="file" accept="image/*" onchange="App.loadBgRemoveImage(event)" hidden></label>
-          <p class="muted">上传后会自动呼叫系统去背景 API。无需填写任何网址。</p>
-        </div>
-        <div class="remove-hero-demo"><div class="demo-person">🪄</div><div class="demo-bg"></div></div>
+    app.innerHTML=adminToolBanner(t,adminMode)+`<div class="simple-bg-page">
+      <div class="simple-bg-header">
+        <h2>AI去背景工具包</h2>
+        <p>上传图片后，点击「去背景」，完成后下载透明 PNG。</p>
       </div>
 
-      <div id="removeWorkspace" class="remove-workspace hidden">
+      <div class="simple-upload-bar">
+        <label class="upload-big-btn">上传图片<input id="bgRemoveFile" type="file" accept="image/*" onchange="App.loadBgRemoveImage(event)" hidden></label>
+        <button class="primary" onclick="App.callRealRemoveBgApi()">去背景</button>
+        <button class="soft" onclick="App.resetBgRemoveTool()">重新</button>
+        <button class="ghost" onclick="App.downloadBgRemoved()">下载透明PNG</button>
+      </div>
+
+      <div id="removeWorkspace" class="simple-remove-workspace">
         <div class="grid two">
-          <div class="card">
+          <div class="card clean-card">
             <h3>原图</h3>
-            <div class="image-frame checker-light"><canvas id="bgOriginalCanvas"></canvas></div>
-            <div id="bgRemoveInfo" class="pdf-info muted">尚未上传图片</div>
+            <div class="image-frame clean-frame"><canvas id="bgOriginalCanvas"></canvas></div>
           </div>
-          <div class="card">
+          <div class="card clean-card">
             <h3>去背景结果</h3>
             <div class="image-frame checker"><canvas id="bgRemoveCanvas"></canvas></div>
-            <div id="realApiStatus" class="api-status muted">等待上传图片。</div>
-            <div class="row wrap">
-              <button class="primary" onclick="App.callRealRemoveBgApi()">重新去背景</button>
-              <button class="ghost" onclick="App.downloadBgRemoved()">下载透明PNG</button>
-            </div>
           </div>
         </div>
       </div>
+
+      <div id="simpleBgMessage" class="simple-bg-message">请先上传图片。</div>
     </div>`;
     window.bgRemoveImage=null;
     window.bgRemovedReady=false;
@@ -931,13 +927,10 @@ AI生成内容前要给它什么？|清楚指令
     img.onload=()=>{
       window.bgRemoveImage=img;
       window.bgOriginalFileName=file.name;
-      $('removeWorkspace')?.classList.remove('hidden');
       fitCanvas($('bgOriginalCanvas'),img);
       fitCanvas($('bgRemoveCanvas'),img);
       window.bgRemovedReady=false;
-      $('bgRemoveInfo').innerHTML=`已载入：<strong>${file.name}</strong> ｜ ${$('bgOriginalCanvas').width} × ${$('bgOriginalCanvas').height}`;
-      $('realApiStatus').innerHTML='图片已上传，正在自动去背景...';
-      callRealRemoveBgApi();
+      if($('simpleBgMessage')) $('simpleBgMessage').textContent='图片已上传，请点击「去背景」。';
     };
     img.src=URL.createObjectURL(file);
   }
@@ -946,8 +939,7 @@ AI生成内容前要给它什么？|清楚指令
     const input=$('bgRemoveFile');
     const file=input?.files?.[0];
     if(!file) return toast('请先上传图片');
-    const status=$('realApiStatus');
-    if(status) status.innerHTML='正在去背景，请稍候...';
+    if($('simpleBgMessage')) $('simpleBgMessage').textContent='正在去背景，请稍候...';
     const form=new FormData();
     form.append('image', file);
     form.append('output_bg', 'transparent');
@@ -968,16 +960,32 @@ AI生成内容前要给它什么？|清楚指令
         ctx.clearRect(0,0,canvas.width,canvas.height);
         ctx.drawImage(img,0,0);
         window.bgRemovedReady=true;
-        if(status) status.innerHTML='已完成去背景，可以下载透明 PNG。';
-        $('bgRemoveInfo').innerHTML=`去背景完成｜输出 ${canvas.width} × ${canvas.height}`;
+        if($('simpleBgMessage')) $('simpleBgMessage').textContent='去背景完成，可以下载透明 PNG。';
         log('background-remover','real-api-remove',{outputCount:1});
         toast('去背景完成');
       };
       img.src=URL.createObjectURL(blob);
     }catch(err){
-      if(status) status.innerHTML=`调用失败：${err.message}<br>请确认 api.onlinesysweb.com 已启用 HTTPS，并且后端服务正常。`;
+      if($('simpleBgMessage')) $('simpleBgMessage').textContent='去背景失败，请稍后再试。';
       toast('去背景失败，请检查 API 服务');
     }
+  }
+
+  function resetBgRemoveTool(){
+    window.bgRemoveImage=null;
+    window.bgRemovedReady=false;
+    window.bgOriginalFileName='';
+    if($('bgRemoveFile')) $('bgRemoveFile').value='';
+    ['bgOriginalCanvas','bgRemoveCanvas'].forEach(id=>{
+      const c=$(id);
+      if(c){
+        const ctx=c.getContext('2d');
+        ctx.clearRect(0,0,c.width,c.height);
+        c.width=0;
+        c.height=0;
+      }
+    });
+    if($('simpleBgMessage')) $('simpleBgMessage').textContent='请先上传图片。';
   }
 
   function downloadBgRemoved(){
@@ -1209,5 +1217,5 @@ AI生成内容前要给它什么？|清楚指令
   function resetDemo(){ localStorage.removeItem(LS); state=seed(); save(); go('home'); }
 
   window.addEventListener('load',()=>go('home'));
-  return {go,setFilter,previewTool,requestTrial,register,verify,login,demoLogin,logout,placeOrder,generateQB,generateLesson,generateGame,previewImage,splitPreview,fakeDownloadZip,downloadText,log,adminLogin,adminLogout,adminTab,confirmOrder,cancelOrder,approveTrial,rejectTrial,viewToolkit,newToolkit,saveToolkit,editToolkit,deleteToolkit,previewReceipt,viewReceipt,previewToolkitCover,toggleToolkitStatusForm,toggleToolkitStatus,moveToolkit,resetDemo,quizScore,quizShowAnswer,quizNext,matchPick,spinWheel,checkQuest,showQuestAnswer,downloadGeneratedGame,showWheelAnswer,updateSubthemeOptions,previewGameAsset,startGeneratedGame,replayCurrentGame,enterGameFullscreen,toggleThemeMusic,finishCurrentGame,loadBgRemoveImage,downloadBgRemoved,updateRemoveLabels,fitCanvas,useSampleBgRemove,aiRemoveBackground,applyOutputBackground,callRealRemoveBgApi,saveRemoveBgApiUrl};
+  return {go,setFilter,previewTool,requestTrial,register,verify,login,demoLogin,logout,placeOrder,generateQB,generateLesson,generateGame,previewImage,splitPreview,fakeDownloadZip,downloadText,log,adminLogin,adminLogout,adminTab,confirmOrder,cancelOrder,approveTrial,rejectTrial,viewToolkit,newToolkit,saveToolkit,editToolkit,deleteToolkit,previewReceipt,viewReceipt,previewToolkitCover,toggleToolkitStatusForm,toggleToolkitStatus,moveToolkit,resetDemo,quizScore,quizShowAnswer,quizNext,matchPick,spinWheel,checkQuest,showQuestAnswer,downloadGeneratedGame,showWheelAnswer,updateSubthemeOptions,previewGameAsset,startGeneratedGame,replayCurrentGame,enterGameFullscreen,toggleThemeMusic,finishCurrentGame,loadBgRemoveImage,downloadBgRemoved,updateRemoveLabels,fitCanvas,useSampleBgRemove,aiRemoveBackground,applyOutputBackground,callRealRemoveBgApi,saveRemoveBgApiUrl,resetBgRemoveTool};
 })();

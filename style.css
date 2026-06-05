@@ -370,3 +370,57 @@ input[type="range"]{width:100%}
   margin-top:12px;
 }
 @media(max-width:780px){.simple-remove-hero{grid-template-columns:1fr}}
+
+
+/* v3.3 ultra simple background remover */
+.simple-bg-page{
+  max-width:980px;
+  margin:0 auto;
+  padding:18px;
+}
+.simple-bg-header{
+  background:linear-gradient(135deg,#eff6ff,#fdf2f8);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:22px;
+  margin-bottom:16px;
+}
+.simple-bg-header h2{margin:0 0 6px 0;font-size:30px}
+.simple-bg-header p{margin:0;color:#64748b}
+.simple-upload-bar{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:center;
+  background:white;
+  border:1px solid var(--border);
+  border-radius:20px;
+  padding:14px;
+  margin-bottom:16px;
+  position:sticky;
+  top:74px;
+  z-index:5;
+  box-shadow:0 8px 26px rgba(15,23,42,.08);
+}
+.simple-remove-workspace .clean-card h3{margin-top:0}
+.clean-frame{
+  background:#f8fafc;
+}
+.simple-bg-message{
+  margin-top:14px;
+  background:#f8fafc;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:12px 14px;
+  color:#475569;
+  font-weight:800;
+}
+.simple-bg-page .api-status,
+.simple-bg-page .api-fixed-url,
+.simple-bg-page .api-note,
+.simple-bg-page .remove-hero,
+.simple-bg-page .simple-remove-hero,
+.simple-bg-page .field,
+.simple-bg-page .badge{
+  display:none!important;
+}
