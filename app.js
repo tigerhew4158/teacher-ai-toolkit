@@ -1,5 +1,5 @@
 const App = (() => {
-  const LS = 'teacher_ai_toolkit_vercel_v3_8';
+  const LS = 'teacher_ai_toolkit_vercel_v4_0';
   const REMOVE_BG_API_URL = 'https://api.onlinesysweb.com/api/remove-bg';
   let state = load();
   let currentToolFilter = '全部';
@@ -72,7 +72,7 @@ const App = (() => {
     app.innerHTML = `
       <section class="hero">
         <div>
-          <div class="badge">Vercel v3.8｜高品质PDF理解出题版</div>
+          <div class="badge">Vercel v4.0｜强制隐藏Prompt版</div>
           <h1>老师专用的 AI 教学工具包订购网站</h1>
           <p>老师不用学习复杂 Prompt，只要注册、订购、付款确认，就能开通自己的教学工具包：出题、备课、切图、课堂游戏、评语、图片分类等。</p>
           <div class="row">
@@ -707,6 +707,23 @@ const App = (() => {
     return `${i}. 参考答案：学生应能围绕「${key}」作答，并结合 PDF 内容说明其意思、重要性或应用方式。可接受答案应包含以下重点：${clean}\n解析：这题主要考学生是否真正理解 PDF 内容，而不是只背关键词。\n评分建议：提到关键词1分，能说明意思2分，能结合例子、原因或应用3分。`;
   }
 
+  function cleanQuestionBankOutput(text){
+    let out = String(text || '');
+    const studentIndex = out.indexOf('《学生题目卷》');
+    if(studentIndex >= 0) out = out.slice(studentIndex);
+
+    // Remove any accidental prompt fragments that appear before the real paper title.
+    out = out.replace(/^([\s\S]*?)(?=《学生题目卷》)/, '');
+
+    // Remove known internal headings if they somehow remain.
+    out = out.replace(/你是一位专业的相关领域教学老师[\s\S]*?(?=《学生题目卷》)/g, '');
+    out = out.replace(/【出题原则】[\s\S]*?(?=《学生题目卷》)/g, '');
+    out = out.replace(/【输出格式】[\s\S]*?(?=《学生题目卷》)/g, '');
+    out = out.replace(/【题目比例】[\s\S]*?(?=《学生题目卷》)/g, '');
+
+    return out.trim();
+  }
+
   function generateQB(){
     const data=window.pdfQuestionData||{text:'',keywords:[],summary:'',sections:[]};
     const sub=$('qbSub')?.value||'综合';
@@ -746,8 +763,10 @@ const App = (() => {
       answerPaper+=`【${questionLabel(qType)}｜${difficulty}】\n`+makeAnswerOnly(i, src, qType, difficulty)+`\n\n`;
     }
 
-    const out=`${studentPaper}\n==================================================\n${answerPaper}\n==================================================\n【教师使用提醒】\n本题库已根据目前读取到的 PDF.js / OCR 内容生成。建议老师正式使用前检查题目、答案与PDF原文是否完全一致。`;
-    $('qbOut').textContent=out;
+    const out=`${studentPaper}
+==================================================
+${answerPaper}`;
+    $('qbOut').textContent=cleanQuestionBankOutput(out);
     log('question-bank','generate',{outputCount:count,source:data.fileName?'pdf':'empty'});
   }
 
