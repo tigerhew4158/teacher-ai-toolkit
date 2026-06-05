@@ -1,19 +1,20 @@
 const App = (() => {
-  const LS = 'teacher_ai_toolkit_vercel_v4_2';
+  const LS = 'teacher_ai_toolkit_vercel_v4_3';
   const REMOVE_BG_API_URL = 'https://api.onlinesysweb.com/api/remove-bg';
   const ADMIN_PASSWORD = 'admin123';
   let state = load();
+  if(localStorage.getItem('teacher_ai_toolkit_admin_authed')==='yes') state.adminAuthed=true;
   let currentToolFilter = '全部';
 
   function seed(){
   
   document.addEventListener('keydown', function(e){
-    if(e.key==='Enter' && e.target && e.target.id==='adminPwd'){
+    if(e.key==='Enter' && e.target && (e.target.id==='adminPass' || e.target.id==='adminPwd' || e.target.id==='adminPassword')){
       e.preventDefault();
-      loginAdmin();
+      adminLogin();
     }
   });
-  const adminPwdEnterFix=true;
+  const adminEnterLoginFixV43=true;
 
   return {
       currentUserId:null,
@@ -82,7 +83,7 @@ const App = (() => {
     app.innerHTML = `
       <section class="hero">
         <div>
-          <div class="badge">Vercel v4.2｜后台登入修正版</div>
+          <div class="badge">Vercel v4.3｜后台登入稳定修正版</div>
           <h1>老师专用的 AI 教学工具包订购网站</h1>
           <p>老师不用学习复杂 Prompt，只要注册、订购、付款确认，就能开通自己的教学工具包：出题、备课、切图、课堂游戏、评语、图片分类等。</p>
           <div class="row">
@@ -1344,23 +1345,18 @@ AI生成内容前要给它什么？|清楚指令
   function renderGenericTool(app,t,adminMode=false){ app.innerHTML=adminToolBanner(t,adminMode)+`<div class="card"><h2>${t.name}</h2><p>${t.desc}</p><div class="toolbox"><p>这个工具的操作界面会在下一版细化。当前已可测试订购、开通与使用记录。</p><button onclick="App.log('${t.id}','open')">记录一次使用</button></div></div>`; }
   function downloadText(filename,outId){ const text=$(outId)?.textContent||''; if(!text) return toast('请先生成内容'); const blob=new Blob([text],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); log(outId.includes('qb')?'question-bank':'lesson-planner','download',{downloadCount:1}); }
 
-  function loginAdmin(){
-    const pwd = ($('adminPwd')?.value || $('adminPassword')?.value || '').trim();
-    if(pwd === ADMIN_PASSWORD || pwd === 'admin123'){
-      state.admin=true;
-      localStorage.setItem('teacher_ai_toolkit_admin_login','yes');
-      save();
-      toast('后台登入成功');
-      renderAdmin();
+  function renderAdmin(app){
+    if(localStorage.getItem('teacher_ai_toolkit_admin_authed')==='yes') state.adminAuthed=true;
+    if(!state.adminAuthed){
+      app.innerHTML=`<div class="card admin-login">
+        <h2>后台登入</h2>
+        <p class="muted">测试密码：admin123</p>
+        <div class="field"><label>后台密码</label><input id="adminPass" type="password" placeholder="请输入后台密码"></div>
+        <button class="primary" onclick="App.adminLogin()">登入后台</button>
+      </div>`;
+      setTimeout(()=>{$('adminPass')?.focus();},50);
       return;
     }
-    toast('后台密码不正确');
-  }
-
-  function renderAdmin(app){
-    if(localStorage.getItem('teacher_ai_toolkit_admin_login')==='yes') state.admin=true;
-
-    if(!state.adminAuthed){ app.innerHTML=`<div class="card admin-login"><h2>后台登入</h2><p class="muted">测试密码：admin123</p><div class="field"><label>后台密码</label><input id="adminPass" type="password"></div><button class="primary" onclick="App.adminLogin()">登入后台</button></div>`; return; }
     const paid=state.orders.filter(o=>o.paymentStatus==='已付款').length, pending=state.orders.filter(o=>o.paymentStatus==='待付款').length, trialPending=state.trialRequests.filter(r=>r.status==='待审核').length, sales=state.orders.filter(o=>o.paymentStatus==='已付款').reduce((s,o)=>s+o.amount,0);
     app.innerHTML=`<div class="section-title"><div><h2>后台管理</h2><p>电脑版看总览更舒服；手机版会自动改成卡片式订单，方便临时确认付款。</p></div><button class="ghost" onclick="App.adminLogout()">退出后台</button></div>
       <div class="grid admin-stats"><div class="card stat"><span class="muted">注册老师</span><strong>${state.users.length}</strong></div><div class="card stat"><span class="muted">待审核试用</span><strong>${trialPending}</strong></div><div class="card stat"><span class="muted">待付款订单</span><strong>${pending}</strong></div><div class="card stat"><span class="muted">已付款订单</span><strong>${paid}</strong></div><div class="card stat"><span class="muted">销售额</span><strong>${money(sales)}</strong></div><div class="card stat"><span class="muted">已开通工具包</span><strong>${state.userToolkits.length}</strong></div><div class="card stat"><span class="muted">使用记录</span><strong>${state.usageLogs.length}</strong></div></div>
@@ -1368,7 +1364,38 @@ AI生成内容前要给它什么？|清楚指令
     adminTab(state.adminCurrentTab||'trials');
   }
   function adminLogin(){
-    loginAdmin();
+    const input=$('adminPass') || $('adminPwd') || $('adminPassword');
+    const pwd=(input?.value||'').trim();
+    if(pwd===ADMIN_PASSWORD || pwd==='admin123'){
+      state.adminAuthed=true;
+      localStorage.setItem('teacher_ai_toolkit_admin_authed','yes');
+      save();
+      toast('后台登入成功');
+      go('admin');
+      return;
+    }
+    toast('后台密码错误');
+  }
+  function adminLogout(){
+    state.adminAuthed=false;
+    localStorage.removeItem('teacher_ai_toolkit_admin_authed');
+    save();
+    go('admin');
+  }
+  function adminTab(tab){
+    state.adminCurrentTab=tab;
+    save();
+    document.querySelectorAll('.tabs button').forEach(b=>{
+      const isActive = b.getAttribute('onclick')?.includes(`'${tab}'`);
+      b.classList.toggle('active', !!isActive);
+    });
+    const el=$('adminBody');
+    if(tab==='trials') el.innerHTML=`<h2>试用申请审核</h2>${adminTrialsTable()}`;
+    if(tab==='orders') el.innerHTML=`<h2>订单管理</h2>${adminOrdersTable()}`;
+    if(tab==='users') el.innerHTML=`<h2>老师会员</h2>${adminUsersTable()}`;
+    if(tab==='tools') el.innerHTML=`<h2>工具包管理</h2>${adminToolsPanel()}`;
+    if(tab==='notifications') el.innerHTML=`<h2>后台即时通知</h2>${adminNotificationsHtml()}`;
+    if(tab==='usage') el.innerHTML=`<h2>使用数据分析</h2>${adminUsage()}`;
   }
   function adminTrialsTable(){
     if(!state.trialRequests.length)return '<div class="card"><p>暂无试用申请。</p></div>';
@@ -1554,5 +1581,5 @@ AI生成内容前要给它什么？|清楚指令
   function resetDemo(){ localStorage.removeItem(LS); state=seed(); save(); go('home'); }
 
   window.addEventListener('load',()=>go('home'));
-  return {go,setFilter,previewTool,requestTrial,register,verify,login,demoLogin,logout,placeOrder,generateQB,generateLesson,generateGame,previewImage,splitPreview,fakeDownloadZip,downloadText,log,adminLogin,adminLogout,adminTab,confirmOrder,cancelOrder,approveTrial,rejectTrial,viewToolkit,newToolkit,saveToolkit,editToolkit,deleteToolkit,previewReceipt,viewReceipt,previewToolkitCover,toggleToolkitStatusForm,toggleToolkitStatus,moveToolkit,resetDemo,quizScore,quizShowAnswer,quizNext,matchPick,spinWheel,checkQuest,showQuestAnswer,downloadGeneratedGame,showWheelAnswer,updateSubthemeOptions,previewGameAsset,startGeneratedGame,replayCurrentGame,enterGameFullscreen,toggleThemeMusic,finishCurrentGame,loadBgRemoveImage,downloadBgRemoved,updateRemoveLabels,fitCanvas,useSampleBgRemove,aiRemoveBackground,applyOutputBackground,callRealRemoveBgApi,saveRemoveBgApiUrl,resetBgRemoveTool,readQuestionPdf,forceReadSelectedPdf,clearQuestionPdf,loadSplitImage,generateImageSlices,downloadSlice,downloadAllSlicesZip,resetSplitter,loginAdmin};
+  return {go,setFilter,previewTool,requestTrial,register,verify,login,demoLogin,logout,placeOrder,generateQB,generateLesson,generateGame,previewImage,splitPreview,fakeDownloadZip,downloadText,log,adminLogin,adminLogout,adminTab,confirmOrder,cancelOrder,approveTrial,rejectTrial,viewToolkit,newToolkit,saveToolkit,editToolkit,deleteToolkit,previewReceipt,viewReceipt,previewToolkitCover,toggleToolkitStatusForm,toggleToolkitStatus,moveToolkit,resetDemo,quizScore,quizShowAnswer,quizNext,matchPick,spinWheel,checkQuest,showQuestAnswer,downloadGeneratedGame,showWheelAnswer,updateSubthemeOptions,previewGameAsset,startGeneratedGame,replayCurrentGame,enterGameFullscreen,toggleThemeMusic,finishCurrentGame,loadBgRemoveImage,downloadBgRemoved,updateRemoveLabels,fitCanvas,useSampleBgRemove,aiRemoveBackground,applyOutputBackground,callRealRemoveBgApi,saveRemoveBgApiUrl,resetBgRemoveTool,readQuestionPdf,forceReadSelectedPdf,clearQuestionPdf,loadSplitImage,generateImageSlices,downloadSlice,downloadAllSlicesZip,resetSplitter};
 })();
