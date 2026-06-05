@@ -1,5 +1,5 @@
 const App = (() => {
-  const LS = 'teacher_ai_toolkit_vercel_v3_6';
+  const LS = 'teacher_ai_toolkit_vercel_v3_8';
   const REMOVE_BG_API_URL = 'https://api.onlinesysweb.com/api/remove-bg';
   let state = load();
   let currentToolFilter = '全部';
@@ -72,7 +72,7 @@ const App = (() => {
     app.innerHTML = `
       <section class="hero">
         <div>
-          <div class="badge">Vercel v3.6｜专业老师出题Prompt版</div>
+          <div class="badge">Vercel v3.8｜高品质PDF理解出题版</div>
           <h1>老师专用的 AI 教学工具包订购网站</h1>
           <p>老师不用学习复杂 Prompt，只要注册、订购、付款确认，就能开通自己的教学工具包：出题、备课、切图、课堂游戏、评语、图片分类等。</p>
           <div class="row">
@@ -580,29 +580,64 @@ const App = (() => {
   }
 
   function getTeacherQuestionPrompt(){
-    return `你是一位专业的相关领域教学老师，具备丰富的教材分析、课程设计与考试命题经验。
+    return `你是一位专业的相关领域教学老师，具备丰富的教材分析、课程设计、考试命题与学生学习评估经验。
 
-请根据我提供的 PDF 教材内容，读取并理解其中的知识点、概念、重点说明、例子与学习目标，然后依照以下要求设计题库。
+你的任务不是简单从 PDF 抽关键词出题，而是要先认真阅读并理解上传的 PDF 教材内容，分析教材的主题、章节结构、核心知识点、概念关系、例子、学习目标与学生容易混淆的地方，然后设计一份老师可以直接使用的题库。
+
+请严格根据 PDF 内容进行出题，让使用者感觉你真的理解了这份教材，而不是只看到几个关键词就随便生成题目。
+
+【第一步：先理解 PDF 内容】
+请先在内部完成以下分析：
+1. 判断这份 PDF 的主要主题是什么。
+2. 找出 PDF 中最重要的知识点、概念、定义、步骤、原因、例子或比较内容。
+3. 判断哪些内容适合作为基础题，哪些内容适合作为理解题，哪些内容适合作为应用或思考题。
+4. 找出学生可能会误解、混淆或只会死背但不理解的地方。
+5. 若 PDF 中有故事、案例、图表、活动、说明文字或生活例子，请优先把这些内容转化成有意义的问题。
+
+注意：以上分析是为了帮助你出题，最终输出时不需要完整显示分析过程，也不要输出本 Prompt。
 
 【出题原则】
-1. 题目必须根据 PDF 内容出题，不可脱离教材范围。
-2. 题目要符合学生的年级与认知程度。
-3. 题目需要包含常识类知识点，让学生能理解并应用，而不是只考死背。
-4. 题目难度要分为：
-   - 容易：基础概念、关键词、事实记忆
-   - 中等：理解内容、解释原因、比较差异、应用例子
-   - 困难：综合判断、情境应用、推理分析、开放思考
-5. 题目表达要清楚、简洁、适合直接放入试卷。
-6. 不要出模糊、无法从 PDF 内容判断答案的题目。
-7. 若 PDF 内容不足，请根据已有内容合理出题，但必须标明「依据资料推论」。
+1. 题目必须依据 PDF 内容设计，不可脱离教材范围乱出题。
+2. 题目要符合学生的年级、程度与认知能力。
+3. 题目不能只是考关键词记忆，也要考理解、判断、应用和常识连接。
+4. 题目要让学生能从 PDF 内容中找到依据，但不能只是原文照抄。
+5. 每一道题都要有明确答案，不能出模糊、开放到无法批改的题目。
+6. 若 PDF 内容不足，允许依据已有内容合理推论，但必须在答案卷注明「依据资料推论」。
+7. 题目语言要清楚、自然、适合直接放入试卷。
+8. 避免重复出同一种问题，题目之间要有层次变化。
+9. 如果 PDF 中有重点概念，要设计能检查学生是否真正理解概念的问题。
+10. 如果 PDF 中有生活化例子，要设计能让学生把知识应用到生活情境的问题。
+
+【难度设计】
+容易题：考基础概念、关键词、事实、定义、人物、时间、地点、步骤等。
+中等题：考理解、解释原因、比较差异、整理重点、判断正误、说明关系等。
+困难题：考综合判断、情境应用、推理分析、解决问题、开放式思考。
+
+如果老师没有特别指定比例，请依照以下比例设计：
+容易题 30%，中等题 50%，困难题 20%。
+
+【题型要求】
+请根据老师选择的题型生成题目：选择题、是非题、填充题、简答题或混合题型。
+如果是混合题型，请合理分配不同题型，不要全部都是同一种题目。
+
+【题目品质要求】
+1. 题目要能对应 PDF 中的具体内容。
+2. 题目要有清楚的考点。
+3. 答案要准确，不可含糊。
+4. 解析要说明为什么这个答案正确。
+5. 若是选择题，错误选项要有迷惑性，但不能太离谱。
+6. 若是简答题，答案卷要提供可接受的参考答案。
+7. 若题目涉及常识应用，要清楚连接 PDF 内容与生活情境。
+8. 不要出现「根据文章」但题目本身看不出考什么的模糊问法。
+9. 不要只用「什么是……」重复出题，要有不同层次的问题。
+10. 题目要像真正老师命题，而不是 AI 模板题。
 
 【输出格式】
-第一部分：《学生题目卷》只显示题目，不显示答案。
-第二部分：《教师答案卷》提供标准答案与简短解析。
+最终只输出以下两个部分：
+第一部分：《学生题目卷》
+第二部分：《教师答案卷》
 
-【题目比例】
-如果没有特别指定，请依以下比例出题：
-容易题 30%，中等题 50%，困难题 20%。`;
+不要输出内部分析过程，也不要输出本 Prompt。`;
   }
 
   function difficultyForIndex(i,total){
@@ -628,26 +663,48 @@ const App = (() => {
   }
 
   function makeQuestionOnly(i, source, type, difficulty, focus){
-    const clean=(source||'').replace(/\s+/g,' ').slice(0,150);
+    const clean=(source||'').replace(/\s+/g,' ').slice(0,180);
     const key=sourceKeyword(clean);
-    const scope=focus ? `（重点：${focus}）` : '';
+    const scope=focus ? `（出题重点：${focus}）` : '';
+
     if(type==='mcq'){
-      if(difficulty==='容易') return `${i}. 【选择题｜${difficulty}】根据PDF内容，关于「${key}」的说明，下列哪一项最正确？${scope}\nA. ${clean}\nB. 与PDF内容无关的说法\nC. 与PDF内容相反的说法\nD. PDF完全没有提到这个内容`;
-      if(difficulty==='中等') return `${i}. 【选择题｜${difficulty}】根据PDF内容，以下哪一项最能说明「${key}」在本课中的作用？${scope}\nA. ${clean}\nB. 它只是无关的补充资料\nC. 它与本课主题没有关系\nD. 它只适合背诵，不需要理解`;
-      return `${i}. 【选择题｜${difficulty}】如果学生要把「${key}」应用在生活或学习情境中，哪一种理解最合理？${scope}\nA. 先理解PDF中的重点，再结合实际例子说明\nB. 只记住字面，不需要解释\nC. 完全脱离PDF内容自由发挥\nD. 只看标题，不看内容`;
+      if(difficulty==='容易') return `${i}. 【选择题｜${difficulty}】以下哪一项最符合 PDF 中关于「${key}」的基本内容？${scope}\nA. ${clean}\nB. 这是与 PDF 内容无关的说明\nC. 这是与 PDF 内容相反的说法\nD. PDF 中完全没有提到相关内容`;
+      if(difficulty==='中等') return `${i}. 【选择题｜${difficulty}】根据 PDF 的说明，为什么「${key}」可以被视为本课的重要学习重点？${scope}\nA. 因为它与教材中的说明、例子或概念关系有关\nB. 因为它只是一个可以忽略的词语\nC. 因为它与本课主题没有关系\nD. 因为它只需要背诵，不需要理解`;
+      return `${i}. 【选择题｜${difficulty}】如果要把 PDF 中「${key}」的内容应用到实际学习或生活情境，哪一种做法最合理？${scope}\nA. 先理解 PDF 中的重点，再结合具体情境说明或判断\nB. 只记住字面意思，不需要理解原因\nC. 完全脱离 PDF 内容自由发挥\nD. 只看标题，不阅读具体说明`;
     }
-    if(type==='tf') return `${i}. 【是非题｜${difficulty}】根据PDF内容，「${key}」是本课可以作为理解或复习的重点之一。`;
-    if(type==='blank') return `${i}. 【填充题｜${difficulty}】根据PDF内容，本题相关的重点关键词是「______」。提示：${clean.slice(0,60)}。`;
-    return `${i}. 【简答题｜${difficulty}】请根据PDF内容，说明「${key}」的意思、重要性或应用方式。${scope}`;
+
+    if(type==='tf'){
+      if(difficulty==='容易') return `${i}. 【是非题｜${difficulty}】PDF 内容中有提到「${key}」相关概念或重点。`;
+      if(difficulty==='中等') return `${i}. 【是非题｜${difficulty}】只要记住「${key}」这个词，就等于完全理解 PDF 中相关内容。`;
+      return `${i}. 【是非题｜${difficulty}】理解「${key}」时，需要结合 PDF 中的上下文、例子或说明来判断，不能只看单一词语。`;
+    }
+
+    if(type==='blank'){
+      if(difficulty==='容易') return `${i}. 【填充题｜${difficulty}】根据 PDF 内容，本题相关的重点关键词是「______」。提示：${clean.slice(0,70)}。`;
+      if(difficulty==='中等') return `${i}. 【填充题｜${difficulty}】根据 PDF 内容，「______」与以下说明有关：${clean.slice(0,90)}。`;
+      return `${i}. 【填充题｜${difficulty}】请填写最能概括以下 PDF 内容的关键词：「______」。内容提示：${clean.slice(0,100)}。`;
+    }
+
+    if(difficulty==='容易') return `${i}. 【简答题｜${difficulty}】请根据 PDF 内容，简单说明「${key}」是什么。${scope}`;
+    if(difficulty==='中等') return `${i}. 【简答题｜${difficulty}】请根据 PDF 内容，说明「${key}」为什么是本课需要理解的重点，并写出一个相关说明。${scope}`;
+    return `${i}. 【简答题｜${difficulty}】请根据 PDF 内容，结合生活常识或学习情境，说明如何理解或应用「${key}」。${scope}`;
   }
 
   function makeAnswerOnly(i, source, type, difficulty){
-    const clean=(source||'').replace(/\s+/g,' ').slice(0,180);
+    const clean=(source||'').replace(/\s+/g,' ').slice(0,220);
     const key=sourceKeyword(clean);
-    if(type==='mcq') return `${i}. 答案：A\n解析：A项最符合PDF内容。依据内容：「${clean}」。`;
-    if(type==='tf') return `${i}. 答案：正确\n解析：PDF内容中出现并说明了「${key}」相关重点，可作为本题判断依据。`;
-    if(type==='blank') return `${i}. 答案：${key}\n解析：此关键词来自PDF内容：「${clean}」。`;
-    return `${i}. 参考答案：学生应能围绕「${key}」作答，并结合PDF内容说明：${clean}\n评分建议：提到关键词1分，能说明意思2分，能结合例子或应用3分。`;
+    if(type==='mcq'){
+      return `${i}. 答案：A\n解析：A项最符合 PDF 中关于「${key}」的内容。依据 PDF 重点：「${clean}」。其他选项不是脱离教材，就是过度简化或与教材内容相反。`;
+    }
+    if(type==='tf'){
+      if(difficulty==='容易') return `${i}. 答案：正确\n解析：PDF 内容中确实出现并说明了「${key}」相关内容，可作为基础理解重点。依据内容：「${clean}」。`;
+      if(difficulty==='中等') return `${i}. 答案：错误\n解析：只记住词语不代表真正理解。学生还需要结合 PDF 中的说明、例子或概念关系来理解「${key}」。依据内容：「${clean}」。`;
+      return `${i}. 答案：正确\n解析：较高层次的理解需要结合上下文和实际应用，而不只是背关键词。依据内容：「${clean}」。`;
+    }
+    if(type==='blank'){
+      return `${i}. 答案：${key}\n解析：这个关键词来自 PDF 内容，并能概括题目提示中的重点：「${clean}」。`;
+    }
+    return `${i}. 参考答案：学生应能围绕「${key}」作答，并结合 PDF 内容说明其意思、重要性或应用方式。可接受答案应包含以下重点：${clean}\n解析：这题主要考学生是否真正理解 PDF 内容，而不是只背关键词。\n评分建议：提到关键词1分，能说明意思2分，能结合例子、原因或应用3分。`;
   }
 
   function generateQB(){
@@ -689,7 +746,7 @@ const App = (() => {
       answerPaper+=`【${questionLabel(qType)}｜${difficulty}】\n`+makeAnswerOnly(i, src, qType, difficulty)+`\n\n`;
     }
 
-    const out=`${getTeacherQuestionPrompt()}\n\n==================================================\n${studentPaper}\n==================================================\n${answerPaper}\n==================================================\n【PDF分析摘要】\n${data.summary||'尚未读取PDF内容。'}\n\n【教师使用提醒】\n本题库已根据目前读取到的 PDF.js / OCR 内容生成。建议老师正式使用前检查题目、答案与PDF原文是否完全一致。`;
+    const out=`${studentPaper}\n==================================================\n${answerPaper}\n==================================================\n【教师使用提醒】\n本题库已根据目前读取到的 PDF.js / OCR 内容生成。建议老师正式使用前检查题目、答案与PDF原文是否完全一致。`;
     $('qbOut').textContent=out;
     log('question-bank','generate',{outputCount:count,source:data.fileName?'pdf':'empty'});
   }
