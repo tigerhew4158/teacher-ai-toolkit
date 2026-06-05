@@ -1,5 +1,5 @@
 const App = (() => {
-  const LS = 'teacher_ai_toolkit_vercel_v3_3';
+  const LS = 'teacher_ai_toolkit_vercel_v3_5';
   const REMOVE_BG_API_URL = 'https://api.onlinesysweb.com/api/remove-bg';
   let state = load();
   let currentToolFilter = '全部';
@@ -72,7 +72,7 @@ const App = (() => {
     app.innerHTML = `
       <section class="hero">
         <div>
-          <div class="badge">Vercel v3.3｜去背景极简三按钮版</div>
+          <div class="badge">Vercel v3.5｜PDF.js+OCR正式读取版</div>
           <h1>老师专用的 AI 教学工具包订购网站</h1>
           <p>老师不用学习复杂 Prompt，只要注册、订购、付款确认，就能开通自己的教学工具包：出题、备课、切图、课堂游戏、评语、图片分类等。</p>
           <div class="row">
@@ -341,20 +341,39 @@ const App = (() => {
     return adminMode ? `<div class="admin-tool-banner"><strong>管理员测试模式</strong><span>你正在直接测试「${t.name}」，不需要购买、不需要付款、不需要申请试用。</span><button class="ghost small" onclick="App.go('admin')">返回后台</button></div>` : '';
   }
   function renderQuestionBank(app,t,adminMode=false){
-    app.innerHTML=adminToolBanner(t,adminMode)+`<div class="section-title"><div><h2>${t.name}</h2><p>上传 PDF 后，系统会读取文字内容、分析重点，再依老师设定的条件生成题库。</p></div></div>
+    app.innerHTML=adminToolBanner(t,adminMode)+`<div class="section-title"><div><h2>${t.name}</h2><p>上传 PDF 后，系统会使用 PDF.js 读取文字；若是扫描图片 PDF，会自动启动 OCR 识别，再分析重点并生成题库。</p></div></div>
     <div class="toolbox pdf-question-tool">
       <div class="pdf-flow">
         <div class="flow-step active">1 上传PDF</div>
-        <div class="flow-step">2 读取分析</div>
-        <div class="flow-step">3 设定条件</div>
+        <div class="flow-step">2 PDF.js读取</div>
+        <div class="flow-step">3 OCR识别</div>
         <div class="flow-step">4 生成题库</div>
       </div>
 
       <div class="card soft-card">
         <h3>上传教学 PDF</h3>
-        <p class="muted">测试版会尝试读取 PDF 文字层。若 PDF 是扫描图片，正式版需要接 OCR 才能完整读取。</p>
-        <div class="field"><label>PDF 档案</label><input id="qbPdfFile" type="file" accept="application/pdf" onchange="App.readQuestionPdf(event)"></div>
+        <p class="muted">正式线上版已接入 PDF.js 与 Tesseract OCR。文字型PDF会直接读取；扫描PDF会尝试OCR识别。OCR第一次载入会较慢。</p>
+        <div class="field"><label>PDF 档案</label><input id="qbPdfFile" type="file" accept=".pdf,application/pdf" onchange="App.readQuestionPdf(event)"></div>
+        <div class="grid three">
+          <div class="field"><label>读取模式</label><select id="pdfReadMode">
+            <option value="auto">自动：先PDF.js，必要时OCR</option>
+            <option value="pdfjs">只用PDF.js文字层</option>
+            <option value="ocr">强制OCR扫描识别</option>
+          </select></div>
+          <div class="field"><label>OCR语言</label><select id="ocrLang">
+            <option value="chi_sim+eng">中文简体 + 英文</option>
+            <option value="chi_tra+eng">中文繁体 + 英文</option>
+            <option value="eng">英文</option>
+            <option value="msa+eng">马来文 + 英文</option>
+          </select></div>
+          <div class="field"><label>OCR页数上限</label><input id="ocrPageLimit" type="number" min="1" max="20" value="6"></div>
+        </div>
         <div id="pdfInfo" class="pdf-info muted">尚未上传 PDF</div>
+        <div id="pdfProgress" class="pdf-progress hidden"><div id="pdfProgressBar"></div></div>
+        <div class="row wrap">
+          <button class="primary" onclick="App.forceReadSelectedPdf()">读取 / 重新分析 PDF</button>
+          <button class="ghost" onclick="App.clearQuestionPdf()">清除 PDF</button>
+        </div>
       </div>
 
       <div class="grid two">
@@ -386,101 +405,219 @@ const App = (() => {
       </div>
 
       <div class="card">
+        <h3>PDF 读取文字预览</h3>
+        <div id="pdfTextPreview" class="pdf-text-preview">尚未读取 PDF。</div>
+      </div>
+
+      <div class="card">
         <h3>生成结果</h3>
         <div id="qbOut" class="tool-output"></div>
       </div>
     </div>`;
-    window.pdfQuestionData={fileName:'',text:'',keywords:[],summary:''};
+    window.pdfQuestionData={fileName:'',text:'',keywords:[],summary:'',sections:[],method:''};
+    setupPdfJsWorker();
   }
 
-  function cleanPdfText(raw){
-    let text=raw||'';
-    const chunks=[];
-    const parens=[...text.matchAll(/\(([^()]{2,200})\)/g)].map(m=>m[1]);
-    const angle=[...text.matchAll(/<([0-9A-Fa-f]{8,})>/g)].slice(0,80).map(m=>{
-      try{
-        const hex=m[1]; let out='';
-        for(let i=0;i<hex.length;i+=2){ const code=parseInt(hex.slice(i,i+2),16); if(code>=32&&code<127) out+=String.fromCharCode(code); }
-        return out;
-      }catch(e){return ''}
-    }).filter(Boolean);
-    chunks.push(...parens,...angle);
-    text=chunks.join(' ');
-    text=text.replace(/\\[()]/g,m=>m.slice(1)).replace(/\s+/g,' ').trim();
-    if(text.length<80){
-      text=(raw||'').replace(/[^\u4e00-\u9fa5A-Za-z0-9，。、“”！？：；（）()\\s.-]/g,' ').replace(/\s+/g,' ').trim();
+  function setupPdfJsWorker(){
+    if(window.pdfjsLib){
+      pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
-    return text.slice(0,12000);
+  }
+
+  function setPdfProgress(percent,msg=''){
+    const wrap=$('pdfProgress'), bar=$('pdfProgressBar');
+    if(wrap) wrap.classList.remove('hidden');
+    if(bar) bar.style.width=Math.max(0,Math.min(100,percent))+'%';
+    if(msg && $('pdfInfo')) $('pdfInfo').innerHTML=msg;
+  }
+
+  function hidePdfProgress(){
+    setTimeout(()=>{$('pdfProgress')?.classList.add('hidden');},900);
+  }
+
+  function forceReadSelectedPdf(){
+    const input=$('qbPdfFile');
+    if(!input || !input.files || !input.files[0]) return toast('请先选择 PDF 档案');
+    readQuestionPdf({target:input});
+  }
+
+  function clearQuestionPdf(){
+    if($('qbPdfFile')) $('qbPdfFile').value='';
+    window.pdfQuestionData={fileName:'',text:'',keywords:[],summary:'',sections:[],method:''};
+    if($('pdfInfo')) $('pdfInfo').textContent='尚未上传 PDF';
+    if($('pdfAnalysis')) $('pdfAnalysis').textContent='上传 PDF 后，这里会显示读取摘要、关键词和可能出题重点。';
+    if($('pdfTextPreview')) $('pdfTextPreview').textContent='尚未读取 PDF。';
+    if($('qbOut')) $('qbOut').textContent='';
+    $('pdfProgress')?.classList.add('hidden');
+  }
+
+  async function readTextWithPdfJs(buffer){
+    if(!window.pdfjsLib) throw new Error('PDF.js 尚未载入，请检查网络或 CDN');
+    setupPdfJsWorker();
+    const loadingTask=pdfjsLib.getDocument({data:buffer});
+    const pdf=await loadingTask.promise;
+    let allText='';
+    for(let p=1;p<=pdf.numPages;p++){
+      setPdfProgress((p/pdf.numPages)*45,`PDF.js 正在读取第 ${p} / ${pdf.numPages} 页...`);
+      const page=await pdf.getPage(p);
+      const content=await page.getTextContent();
+      const pageText=content.items.map(it=>it.str||'').join(' ');
+      allText += `\n\n【第${p}页】\n` + pageText;
+    }
+    return {text:allText.replace(/\s+/g,' ').trim(), pages:pdf.numPages, pdf};
+  }
+
+  async function ocrPdfWithTesseract(buffer, pageLimit=6, lang='chi_sim+eng'){
+    if(!window.pdfjsLib) throw new Error('PDF.js 尚未载入，无法把PDF转成图片');
+    if(!window.Tesseract) throw new Error('Tesseract OCR 尚未载入，请检查网络或 CDN');
+    setupPdfJsWorker();
+    const pdf=await pdfjsLib.getDocument({data:buffer}).promise;
+    const maxPages=Math.min(pdf.numPages, pageLimit);
+    let text='';
+    for(let p=1;p<=maxPages;p++){
+      setPdfProgress(45+(p/maxPages)*50,`OCR 正在识别第 ${p} / ${maxPages} 页，请稍候...`);
+      const page=await pdf.getPage(p);
+      const viewport=page.getViewport({scale:1.8});
+      const canvas=document.createElement('canvas');
+      const ctx=canvas.getContext('2d');
+      canvas.width=viewport.width;
+      canvas.height=viewport.height;
+      await page.render({canvasContext:ctx,viewport}).promise;
+      const result=await Tesseract.recognize(canvas, lang, {
+        logger:m=>{
+          if(m.status==='recognizing text'){
+            const local=45+((p-1)+(m.progress||0))/maxPages*50;
+            setPdfProgress(local,`OCR 第 ${p} 页：${Math.round((m.progress||0)*100)}%`);
+          }
+        }
+      });
+      text += `\n\n【OCR第${p}页】\n` + (result.data.text||'');
+    }
+    return {text:text.replace(/\s+/g,' ').trim(), pages:pdf.numPages, ocrPages:maxPages};
+  }
+
+  function splitSections(text){
+    const cleaned=(text||'').replace(/\s+/g,' ').trim();
+    const sentences=cleaned.split(/[。！？.!?\n]/).map(x=>x.trim()).filter(x=>x.length>8 && !/^\d+$/.test(x));
+    if(sentences.length) return sentences.slice(0,30);
+    return cleaned.match(/.{1,100}/g)||[];
   }
 
   function extractKeywords(text){
-    const stop='这个 一个 以及 因为 所以 可以 进行 学生 老师 内容 通过 使用 了解 认识 说明 什么 如何 为什么 the and for with this that from are was were';
-    const words=(text.match(/[\u4e00-\u9fa5]{2,6}|[A-Za-z]{4,}/g)||[])
-      .map(x=>x.trim()).filter(x=>x && !stop.includes(x.toLowerCase()));
+    const stop='这个 一个 以及 因为 所以 可以 进行 学生 老师 内容 通过 使用 了解 认识 说明 什么 如何 为什么 但是 如果 他们 我们 你们 这里 那里 学习 教学 由于 其中 需要 主要 例如 the and for with this that from are was were have has into about';
+    const words=(text.match(/[\u4e00-\u9fa5]{2,8}|[A-Za-z]{4,}/g)||[])
+      .map(x=>x.trim())
+      .filter(x=>x && !stop.includes(x.toLowerCase()) && !/^\d+$/.test(x));
     const freq={};
     words.forEach(w=>freq[w]=(freq[w]||0)+1);
-    return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,12).map(x=>x[0]);
+    return Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,18).map(x=>x[0]);
   }
 
-  function readQuestionPdf(event){
+  function analyzePdfText(fileName,text,method,pages=0){
+    const keywords=extractKeywords(text);
+    const sections=splitSections(text);
+    const summary=sections.slice(0,6).join('。') + (sections.length?'。':'');
+    window.pdfQuestionData={fileName,text,keywords,summary,sections,method,pages};
+
+    const readable=text.length>120;
+    $('pdfInfo').innerHTML=`已上传：<strong>${fileName}</strong> ｜ 读取方式：<strong>${method}</strong> ｜ 页数：${pages||'-'} ｜ 文字约 <strong>${text.length}</strong> 字`;
+    $('pdfAnalysis').innerHTML=`
+      <p><strong>档案：</strong>${fileName}</p>
+      <p><strong>读取方式：</strong>${method}</p>
+      <p><strong>读取状态：</strong>${readable?'已读取 / 识别到 PDF 内容':'读取文字较少，可能是图片品质低或扫描不清楚'}</p>
+      <p><strong>关键词：</strong>${keywords.map(k=>`<span class="chip">${k}</span>`).join('') || '<span class="muted">暂时无法取得关键词</span>'}</p>
+      <p><strong>可能出题重点：</strong></p>
+      <ol>${sections.slice(0,8).map(x=>`<li>${x}</li>`).join('') || '<li>无法分析重点，请换更清楚PDF或增加OCR页数。</li>'}</ol>
+      <p><strong>摘要：</strong></p>
+      <div class="summary-box">${summary || '无法读取足够文字。'}</div>`;
+    $('pdfTextPreview').textContent=text.slice(0,5000) || '无法读取文字。请尝试强制OCR，或上传更清楚的PDF。';
+  }
+
+  async function readQuestionPdf(event){
     const file=event.target.files?.[0];
     if(!file) return;
-    if(file.type!=='application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) return toast('请上传 PDF 档案');
-    $('pdfInfo').innerHTML=`正在读取：<strong>${file.name}</strong>（${Math.round(file.size/1024)} KB）`;
-    const reader=new FileReader();
-    reader.onload=()=>{
-      const bytes=new Uint8Array(reader.result);
-      let raw='';
-      for(let i=0;i<bytes.length;i+=60000){
-        raw += new TextDecoder('latin1').decode(bytes.slice(i,i+60000));
+    if(!file.name.toLowerCase().endsWith('.pdf') && file.type!=='application/pdf') return toast('请上传 PDF 档案');
+
+    $('pdfInfo').innerHTML=`正在上传并读取：<strong>${file.name}</strong>（${Math.round(file.size/1024)} KB）`;
+    $('pdfAnalysis').innerHTML='正在读取 PDF，请稍候...';
+    $('pdfTextPreview').textContent='读取中...';
+    setPdfProgress(5,'正在载入 PDF...');
+
+    try{
+      const buffer=await file.arrayBuffer();
+      const mode=$('pdfReadMode')?.value||'auto';
+      const lang=$('ocrLang')?.value||'chi_sim+eng';
+      const limit=Math.max(1,Math.min(20,Number($('ocrPageLimit')?.value||6)));
+
+      let finalText='', method='', pages=0;
+
+      if(mode==='ocr'){
+        const ocr=await ocrPdfWithTesseract(buffer,limit,lang);
+        finalText=ocr.text; method=`OCR扫描识别（${lang}，${ocr.ocrPages}/${ocr.pages}页）`; pages=ocr.pages;
+      }else{
+        const pdfjs=await readTextWithPdfJs(buffer);
+        finalText=pdfjs.text; method='PDF.js文字层读取'; pages=pdfjs.pages;
+
+        if(mode==='auto' && finalText.replace(/\s/g,'').length<120){
+          setPdfProgress(48,'PDF文字较少，自动启动 OCR 扫描识别...');
+          const ocr=await ocrPdfWithTesseract(buffer,limit,lang);
+          finalText=ocr.text; method=`自动OCR扫描识别（${lang}，${ocr.ocrPages}/${ocr.pages}页）`; pages=ocr.pages;
+        }
       }
-      const text=cleanPdfText(raw);
-      const keywords=extractKeywords(text);
-      const summary=text ? text.slice(0,360)+'...' : '';
-      window.pdfQuestionData={fileName:file.name,text,keywords,summary};
-      $('pdfInfo').innerHTML=`已上传：<strong>${file.name}</strong> ｜ 读取文字约 ${text.length} 字`;
-      $('pdfAnalysis').innerHTML=`
-        <p><strong>档案：</strong>${file.name}</p>
-        <p><strong>读取状态：</strong>${text.length>120?'已读取到文字内容':'读取文字较少，可能是扫描PDF或图片PDF'}</p>
-        <p><strong>关键词：</strong>${keywords.map(k=>`<span class="chip">${k}</span>`).join('') || '<span class="muted">暂时无法取得关键词</span>'}</p>
-        <p><strong>内容摘要：</strong></p>
-        <div class="summary-box">${summary || '无法读取足够文字。正式版建议加入 OCR 或 PDF.js。'}</div>`;
-      toast('PDF 读取与分析完成');
-    };
-    reader.readAsArrayBuffer(file);
+
+      setPdfProgress(98,'正在分析重点...');
+      analyzePdfText(file.name,finalText,method,pages);
+      setPdfProgress(100,'PDF 已完成读取与重点分析');
+      hidePdfProgress();
+      toast('PDF 已完成读取与分析');
+    }catch(err){
+      $('pdfInfo').innerHTML=`读取失败：${err.message}`;
+      $('pdfAnalysis').innerHTML='读取失败，请检查网络、PDF内容，或改用OCR模式。';
+      $('pdfTextPreview').textContent='';
+      hidePdfProgress();
+      toast('PDF 读取失败');
+    }
   }
 
-  function questionFromKeyword(i, keyword, type, level, focus){
-    const stem = focus ? `${keyword}与「${focus}」` : keyword;
-    if(type==='mcq') return `${i}. 选择题：关于「${stem}」，下列哪一项最正确？\nA. 与主题有关的重要概念\nB. 完全无关的说法\nC. 与内容相反的说法\nD. 无法从资料判断\n答案：A\n解析：根据PDF内容，「${keyword}」是重要关键词，应回到原文确认具体说明。\n`;
-    if(type==='tf') return `${i}. 是非题：「${stem}」是本PDF内容中的一个重要学习重点。\n答案：是\n解析：系统在PDF文字中识别到此关键词，可作为复习判断题。\n`;
-    if(type==='blank') return `${i}. 填充题：本PDF中提到的重点之一是「______」，它与本课内容有关。\n答案：${keyword}\n解析：此题用于检查学生是否掌握PDF中的核心词。\n`;
-    if(type==='short') return `${i}. 简答题：请根据PDF内容，简要说明「${stem}」的意思或重要性。\n参考答案：学生应能围绕「${keyword}」写出PDF中的相关说明。\n评分建议：能写出关键词1分，能说明关系2分，能举例3分。\n`;
+  function questionFromSource(i, source, type, level, focus){
+    const clean=(source||'').replace(/\s+/g,' ').slice(0,140);
+    const key=(clean.match(/[\u4e00-\u9fa5]{2,8}|[A-Za-z]{4,}/)||['重点'])[0];
+    const stem = focus ? `${clean}（重点：${focus}）` : clean;
+    if(type==='mcq') return `${i}. 选择题：根据PDF内容，关于「${key}」，下列哪一项最符合原文？\nA. ${stem}\nB. 与原文无关的说法\nC. 与原文相反的说法\nD. 原文完全没有提到\n答案：A\n解析：此题根据PDF中「${clean}」相关内容生成。\n`;
+    if(type==='tf') return `${i}. 是非题：PDF内容有提到「${key}」相关概念。\n答案：是\n解析：系统从PDF重点句中识别到相关内容：${clean}\n`;
+    if(type==='blank') return `${i}. 填充题：根据PDF内容，重点关键词之一是「______」。\n答案：${key}\n解析：此关键词来自PDF内容：${clean}\n`;
+    if(type==='short') return `${i}. 简答题：请根据PDF内容，说明「${key}」的意思或重要性。\n参考答案：学生应围绕以下内容作答：${clean}\n评分建议：提到关键词1分，能说明内容2分，能结合例子3分。\n`;
     const types=['mcq','tf','blank','short'];
-    return questionFromKeyword(i, keyword, types[(i-1)%types.length], level, focus);
+    return questionFromSource(i, source, types[(i-1)%types.length], level, focus);
   }
 
   function generateQB(){
-    const data=window.pdfQuestionData||{text:'',keywords:[]};
+    const data=window.pdfQuestionData||{text:'',keywords:[],summary:'',sections:[]};
     const sub=$('qbSub')?.value||'综合';
     const grade=$('qbGrade')?.value||'学生';
     const count=Math.max(1, Math.min(50, Number($('qbCount')?.value||10)));
     const level=$('qbLevel')?.value||'中等';
     const type=$('qbType')?.value||'mixed';
     const focus=$('qbFocus')?.value.trim()||'';
-    let keywords=data.keywords&&data.keywords.length?data.keywords:[sub,'重点内容','学习概念','原因','方法','应用'];
+
+    if(!data.text || data.text.length<50){
+      toast('PDF 内容还没成功读取，请先上传并读取 PDF');
+    }
+
+    const sources=(data.sections&&data.sections.length?data.sections:data.keywords&&data.keywords.length?data.keywords:['请先上传可读取文字的PDF']);
     let out=`${grade}${sub} PDF题库\n`;
-    out+=`来源PDF：${data.fileName||'尚未上传PDF（使用示例关键词）'}\n`;
+    out+=`来源PDF：${data.fileName||'尚未成功读取PDF'}\n`;
+    out+=`读取方式：${data.method||'-'}\n`;
     out+=`题型：${$('qbType')?.selectedOptions?.[0]?.textContent||'混合题型'} ｜ 难度：${level} ｜ 题数：${count}\n`;
     if(focus) out+=`出题重点：${focus}\n`;
-    out+=`\n【PDF分析摘要】\n${data.summary||'尚未读取PDF内容。当前题目为测试版模板。'}\n\n【题库内容】\n`;
+    out+=`\n【PDF分析摘要】\n${data.summary||'尚未读取PDF内容。'}\n\n【题库内容】\n`;
     for(let i=1;i<=count;i++){
-      const kw=keywords[(i-1)%keywords.length];
-      out+=questionFromKeyword(i, kw, type, level, focus)+'\n';
+      const src=sources[(i-1)%sources.length];
+      out+=questionFromSource(i, src, type, level, focus)+'\n';
     }
-    out+=`【使用提醒】\n测试版已根据PDF读取文字与关键词生成题库。正式版建议接入AI模型，让题目更贴近原文段落、难度与课程标准。\n`;
+    out+=`【使用提醒】\n题目已根据目前读取到的 PDF 文字 / OCR 内容生成。请老师根据课堂需要再校对题目与答案。\n`;
     $('qbOut').textContent=out;
-    log('question-bank','generate',{outputCount:count,source:data.fileName?'pdf':'sample'});
+    log('question-bank','generate',{outputCount:count,source:data.fileName?'pdf':'empty'});
   }
 
   function renderLessonPlanner(app,t,adminMode=false){ app.innerHTML=adminToolBanner(t,adminMode)+`<div class="section-title"><div><h2>${t.name}</h2><p>输入课题，生成一份简易教案。</p></div></div><div class="toolbox"><div class="field"><label>课题</label><input id="lpTopic" value="认识人工智能"></div><div class="field"><label>学生年龄</label><input id="lpAge" value="10-12岁"></div><button class="primary" onclick="App.generateLesson()">生成教案</button><button class="ghost" onclick="App.downloadText('lesson-plan.txt','lpOut')">下载TXT</button><div id="lpOut" class="tool-output"></div></div>`; }
@@ -1217,5 +1354,5 @@ AI生成内容前要给它什么？|清楚指令
   function resetDemo(){ localStorage.removeItem(LS); state=seed(); save(); go('home'); }
 
   window.addEventListener('load',()=>go('home'));
-  return {go,setFilter,previewTool,requestTrial,register,verify,login,demoLogin,logout,placeOrder,generateQB,generateLesson,generateGame,previewImage,splitPreview,fakeDownloadZip,downloadText,log,adminLogin,adminLogout,adminTab,confirmOrder,cancelOrder,approveTrial,rejectTrial,viewToolkit,newToolkit,saveToolkit,editToolkit,deleteToolkit,previewReceipt,viewReceipt,previewToolkitCover,toggleToolkitStatusForm,toggleToolkitStatus,moveToolkit,resetDemo,quizScore,quizShowAnswer,quizNext,matchPick,spinWheel,checkQuest,showQuestAnswer,downloadGeneratedGame,showWheelAnswer,updateSubthemeOptions,previewGameAsset,startGeneratedGame,replayCurrentGame,enterGameFullscreen,toggleThemeMusic,finishCurrentGame,loadBgRemoveImage,downloadBgRemoved,updateRemoveLabels,fitCanvas,useSampleBgRemove,aiRemoveBackground,applyOutputBackground,callRealRemoveBgApi,saveRemoveBgApiUrl,resetBgRemoveTool};
+  return {go,setFilter,previewTool,requestTrial,register,verify,login,demoLogin,logout,placeOrder,generateQB,generateLesson,generateGame,previewImage,splitPreview,fakeDownloadZip,downloadText,log,adminLogin,adminLogout,adminTab,confirmOrder,cancelOrder,approveTrial,rejectTrial,viewToolkit,newToolkit,saveToolkit,editToolkit,deleteToolkit,previewReceipt,viewReceipt,previewToolkitCover,toggleToolkitStatusForm,toggleToolkitStatus,moveToolkit,resetDemo,quizScore,quizShowAnswer,quizNext,matchPick,spinWheel,checkQuest,showQuestAnswer,downloadGeneratedGame,showWheelAnswer,updateSubthemeOptions,previewGameAsset,startGeneratedGame,replayCurrentGame,enterGameFullscreen,toggleThemeMusic,finishCurrentGame,loadBgRemoveImage,downloadBgRemoved,updateRemoveLabels,fitCanvas,useSampleBgRemove,aiRemoveBackground,applyOutputBackground,callRealRemoveBgApi,saveRemoveBgApiUrl,resetBgRemoveTool,readQuestionPdf,forceReadSelectedPdf,clearQuestionPdf};
 })();

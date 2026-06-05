@@ -424,3 +424,31 @@ input[type="range"]{width:100%}
 .simple-bg-page .badge{
   display:none!important;
 }
+
+
+/* v3.4 PDF upload read analyze fix */
+.pdf-flow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.flow-step{background:#eef2ff;color:#1e3a8a;border-radius:999px;padding:8px 12px;font-weight:800;font-size:13px}
+.flow-step.active{background:#e11d48;color:white}
+.soft-card{background:#f8fafc}
+.pdf-info{padding:10px 12px;background:white;border:1px solid var(--border);border-radius:14px;margin-top:10px}
+.analysis-box{min-height:220px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;line-height:1.7;overflow:auto}
+.summary-box{background:#0f172a;color:white;border-radius:14px;padding:14px;white-space:pre-wrap;max-height:180px;overflow:auto}
+.pdf-text-preview{background:#0f172a;color:white;border-radius:14px;padding:14px;white-space:pre-wrap;max-height:360px;overflow:auto;line-height:1.65}
+.pdf-question-tool .tool-output{white-space:pre-wrap;max-height:560px;overflow:auto}
+.chip{display:inline-block;background:#eef2ff;color:#1e3a8a;border-radius:999px;padding:5px 10px;margin:3px;font-size:13px;font-weight:800}
+
+
+/* v3.5 PDF.js OCR question bank */
+.pdf-flow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.flow-step{background:#eef2ff;color:#1e3a8a;border-radius:999px;padding:8px 12px;font-weight:800;font-size:13px}
+.flow-step.active{background:#e11d48;color:white}
+.soft-card{background:#f8fafc}
+.pdf-info{padding:10px 12px;background:white;border:1px solid var(--border);border-radius:14px;margin-top:10px}
+.pdf-progress{height:10px;background:#e5e7eb;border-radius:999px;margin:12px 0;overflow:hidden}
+.pdf-progress div{height:100%;background:linear-gradient(90deg,#e11d48,#2563eb);width:0%;transition:width .25s ease}
+.analysis-box{min-height:220px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;line-height:1.7;overflow:auto}
+.summary-box{background:#0f172a;color:white;border-radius:14px;padding:14px;white-space:pre-wrap;max-height:180px;overflow:auto}
+.pdf-text-preview{background:#0f172a;color:white;border-radius:14px;padding:14px;white-space:pre-wrap;max-height:360px;overflow:auto;line-height:1.65}
+.pdf-question-tool .tool-output{white-space:pre-wrap;max-height:560px;overflow:auto}
+.chip{display:inline-block;background:#eef2ff;color:#1e3a8a;border-radius:999px;padding:5px 10px;margin:3px;font-size:13px;font-weight:800}
