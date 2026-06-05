@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>阿虎老师AI工具包｜MVP测试版</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand" onclick="App.go('home')">
+      <div class="logo">虎</div>
+      <div>
+        <strong>阿虎老师AI工具包</strong>
+        <span>Teacher AI Toolkit</span>
+      </div>
+    </div>
+    <nav>
+      <button onclick="App.go('home')">首页</button>
+      <button onclick="App.go('catalog')">工具包</button>
+      <button onclick="App.go('pricing')">价格</button>
+      <button onclick="App.go('products')">周边</button>
+      <button onclick="App.go('dashboard')" id="navDashboard">会员中心</button>
+      <button onclick="App.go('admin')">后台</button>
+      <button onclick="App.logout()" id="navLogout" class="ghost hidden">登出</button>
+    </nav>
+  </header>
+
+  <main id="app"></main>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <template id="tool-card-template">
+    <article class="card tool-card">
+      <div class="badge"></div>
+      <h3></h3>
+      <p></p>
+      <div class="meta"></div>
+      <div class="card-actions"></div>
+    </article>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

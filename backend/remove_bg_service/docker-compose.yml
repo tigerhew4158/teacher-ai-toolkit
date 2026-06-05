@@ -1,0 +1,7 @@
+services:
+  remove-bg-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - REMBG_MODEL=isnet-general-use
