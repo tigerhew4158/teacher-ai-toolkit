@@ -1,5 +1,5 @@
 const App = (() => {
-  const LS = 'teacher_ai_toolkit_vercel_v4_4';
+  const LS = 'teacher_ai_toolkit_vercel_v4_6';
   const REMOVE_BG_API_URL = 'https://api.onlinesysweb.com/api/remove-bg';
   const ADMIN_PASSWORD = 'admin123';
   let state = load();
@@ -7,35 +7,7 @@ const App = (() => {
   let currentToolFilter = '全部';
 
   function seed(){
-  
-  document.addEventListener('keydown', function(e){
-    if(e.key==='Enter' && e.target && (e.target.id==='adminPass' || e.target.id==='adminPwd' || e.target.id==='adminPassword')){
-      e.preventDefault();
-      adminLogin();
-    }
-  });
-  const adminEnterLoginFixV43=true;
-
-
-  document.addEventListener('click', function(e){
-    const target=e.target.closest('[data-route]');
-    if(target){
-      e.preventDefault();
-      go(target.getAttribute('data-route')||'home');
-      return;
-    }
-    const nav=e.target.closest('a[href^="#"]');
-    if(nav){
-      const h=nav.getAttribute('href').replace('#','');
-      if(['home','tools','pricing','peripherals','admin','orders','trial','profile'].includes(h)){
-        e.preventDefault();
-        go(h);
-      }
-    }
-  });
-  const homepageLinkFixV44=true;
-
-  return {
+    return {
       currentUserId:null,
       adminAuthed:false,
       users:[],
@@ -77,22 +49,27 @@ const App = (() => {
     $('navLogout')?.classList.toggle('hidden', !logged);
   }
 
-  function go(page='home'){
-    state.route=page || 'home';
-    save();
-    render();
-    window.scrollTo({top:0,behavior:'smooth'});
-  }
-
-  function scrollToSection(id){
-    if(state.route!=='home'){
-      state.route='home';
-      save();
-      render();
-      setTimeout(()=>document.getElementById(id)?.scrollIntoView({behavior:'smooth'}),80);
-    }else{
-      document.getElementById(id)?.scrollIntoView({behavior:'smooth'});
-    }
+  function go(page, params={}){
+    const app=$('app');
+    const routeAlias={tools:'catalog',toolkits:'catalog',price:'pricing',peripherals:'products',peripheral:'products',around:'products'};
+    page = routeAlias[page] || page || 'home';
+    if(!app){ console.error('App root #app not found'); return; }
+    updateNav();
+    if(page==='home') return renderHome(app);
+    if(page==='catalog') return renderCatalog(app);
+    if(page==='toolkitDetail') return renderToolkitDetail(app, params.id);
+    if(page==='pricing') return renderPricing(app);
+    if(page==='products') return renderProducts(app);
+    if(page==='register') return renderRegister(app);
+    if(page==='verify') return renderVerify(app, params.email);
+    if(page==='login') return renderLogin(app);
+    if(page==='dashboard') return requireUser(()=>renderDashboard(app));
+    if(page==='orders') return requireUser(()=>renderOrders(app));
+    if(page==='adminTool') return requireAdmin(()=>renderTool(app, params.id, true));
+    if(page==='tool') return requireUser(()=>renderTool(app, params.id, false));
+    if(page==='checkout') return requireUser(()=>renderCheckout(app, params.id));
+    if(page==='admin') return renderAdmin(app);
+    return renderHome(app);
   }
   function requireUser(fn){ if(!state.currentUserId){toast('请先登入会员'); return renderLogin($('app'));} fn(); }
   function requireAdmin(fn){ if(!state.adminAuthed){toast('请先登入后台'); return renderAdmin($('app'));} fn(); }
@@ -101,7 +78,7 @@ const App = (() => {
     app.innerHTML = `
       <section class="hero">
         <div>
-          <div class="badge">Vercel v4.4｜首页按钮连结修正版</div>
+          <div class="badge">Vercel v4.6｜修正JS启动空白版</div>
           <h1>老师专用的 AI 教学工具包订购网站</h1>
           <p>老师不用学习复杂 Prompt，只要注册、订购、付款确认，就能开通自己的教学工具包：出题、备课、切图、课堂游戏、评语、图片分类等。</p>
           <div class="row">
@@ -1364,17 +1341,7 @@ AI生成内容前要给它什么？|清楚指令
   function downloadText(filename,outId){ const text=$(outId)?.textContent||''; if(!text) return toast('请先生成内容'); const blob=new Blob([text],{type:'text/plain'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); log(outId.includes('qb')?'question-bank':'lesson-planner','download',{downloadCount:1}); }
 
   function renderAdmin(app){
-    if(localStorage.getItem('teacher_ai_toolkit_admin_authed')==='yes') state.adminAuthed=true;
-    if(!state.adminAuthed){
-      app.innerHTML=`<div class="card admin-login">
-        <h2>后台登入</h2>
-        <p class="muted">测试密码：admin123</p>
-        <div class="field"><label>后台密码</label><input id="adminPass" type="password" placeholder="请输入后台密码"></div>
-        <button class="primary" onclick="App.adminLogin()">登入后台</button>
-      </div>`;
-      setTimeout(()=>{$('adminPass')?.focus();},50);
-      return;
-    }
+    if(!state.adminAuthed){ app.innerHTML=`<div class="card admin-login"><h2>后台登入</h2><p class="muted">测试密码：admin123</p><div class="field"><label>后台密码</label><input id="adminPass" type="password"></div><button class="primary" onclick="App.adminLogin()">登入后台</button></div>`; return; }
     const paid=state.orders.filter(o=>o.paymentStatus==='已付款').length, pending=state.orders.filter(o=>o.paymentStatus==='待付款').length, trialPending=state.trialRequests.filter(r=>r.status==='待审核').length, sales=state.orders.filter(o=>o.paymentStatus==='已付款').reduce((s,o)=>s+o.amount,0);
     app.innerHTML=`<div class="section-title"><div><h2>后台管理</h2><p>电脑版看总览更舒服；手机版会自动改成卡片式订单，方便临时确认付款。</p></div><button class="ghost" onclick="App.adminLogout()">退出后台</button></div>
       <div class="grid admin-stats"><div class="card stat"><span class="muted">注册老师</span><strong>${state.users.length}</strong></div><div class="card stat"><span class="muted">待审核试用</span><strong>${trialPending}</strong></div><div class="card stat"><span class="muted">待付款订单</span><strong>${pending}</strong></div><div class="card stat"><span class="muted">已付款订单</span><strong>${paid}</strong></div><div class="card stat"><span class="muted">销售额</span><strong>${money(sales)}</strong></div><div class="card stat"><span class="muted">已开通工具包</span><strong>${state.userToolkits.length}</strong></div><div class="card stat"><span class="muted">使用记录</span><strong>${state.usageLogs.length}</strong></div></div>
@@ -1390,9 +1357,9 @@ AI生成内容前要给它什么？|清楚指令
       save();
       toast('后台登入成功');
       go('admin');
-      return;
+    }else{
+      toast('后台密码错误');
     }
-    toast('后台密码错误');
   }
   function adminLogout(){
     state.adminAuthed=false;
@@ -1598,6 +1565,54 @@ AI生成内容前要给它什么？|清楚指令
 
   function resetDemo(){ localStorage.removeItem(LS); state=seed(); save(); go('home'); }
 
+  document.addEventListener('keydown', function(e){
+    if(e.key==='Enter' && e.target && (e.target.id==='adminPass' || e.target.id==='adminPwd' || e.target.id==='adminPassword')){
+      e.preventDefault();
+      adminLogin();
+    }
+  });
+  const adminEnterLoginFixV45=true;
+
+  document.addEventListener('click', function(e){
+    const routeNode=e.target.closest('[data-route]');
+    if(routeNode){
+      e.preventDefault();
+      go(routeNode.getAttribute('data-route')||'home');
+      return;
+    }
+    const hashNode=e.target.closest('a[href^="#"]');
+    if(hashNode){
+      const route=(hashNode.getAttribute('href')||'').replace('#','');
+      if(['home','catalog','tools','pricing','products','peripherals','admin','login','register','dashboard'].includes(route)){
+        e.preventDefault();
+        go(route);
+      }
+    }
+  });
+  const navigationClickFixV45=true;
+
+
+  // v4.6 compatibility aliases: prevent startup crash from old exported names.
+  function previewImage(){
+    toast('此工具已升级，请使用新版切图或去背景工具。');
+  }
+  function splitPreview(){
+    return generateImageSlices();
+  }
+  function fakeDownloadZip(){
+    return downloadAllSlicesZip();
+  }
+
   window.addEventListener('load',()=>go('home'));
-  return {go,setFilter,previewTool,requestTrial,register,verify,login,demoLogin,logout,placeOrder,generateQB,generateLesson,generateGame,previewImage,splitPreview,fakeDownloadZip,downloadText,log,adminLogin,adminLogout,adminTab,confirmOrder,cancelOrder,approveTrial,rejectTrial,viewToolkit,newToolkit,saveToolkit,editToolkit,deleteToolkit,previewReceipt,viewReceipt,previewToolkitCover,toggleToolkitStatusForm,toggleToolkitStatus,moveToolkit,resetDemo,quizScore,quizShowAnswer,quizNext,matchPick,spinWheel,checkQuest,showQuestAnswer,downloadGeneratedGame,showWheelAnswer,updateSubthemeOptions,previewGameAsset,startGeneratedGame,replayCurrentGame,enterGameFullscreen,toggleThemeMusic,finishCurrentGame,loadBgRemoveImage,downloadBgRemoved,updateRemoveLabels,fitCanvas,useSampleBgRemove,aiRemoveBackground,applyOutputBackground,callRealRemoveBgApi,saveRemoveBgApiUrl,resetBgRemoveTool,readQuestionPdf,forceReadSelectedPdf,clearQuestionPdf,loadSplitImage,generateImageSlices,downloadSlice,downloadAllSlicesZip,resetSplitter,scrollToSection,render};
+    function loadBgRemoveImage(){ console.warn('Compatibility stub: loadBgRemoveImage'); }
+  function downloadBgRemoved(){ console.warn('Compatibility stub: downloadBgRemoved'); }
+  function updateRemoveLabels(){ console.warn('Compatibility stub: updateRemoveLabels'); }
+  function fitCanvas(){ console.warn('Compatibility stub: fitCanvas'); }
+  function useSampleBgRemove(){ console.warn('Compatibility stub: useSampleBgRemove'); }
+  function aiRemoveBackground(){ console.warn('Compatibility stub: aiRemoveBackground'); }
+  function applyOutputBackground(){ console.warn('Compatibility stub: applyOutputBackground'); }
+  function callRealRemoveBgApi(){ console.warn('Compatibility stub: callRealRemoveBgApi'); }
+  function saveRemoveBgApiUrl(){ console.warn('Compatibility stub: saveRemoveBgApiUrl'); }
+  function resetBgRemoveTool(){ console.warn('Compatibility stub: resetBgRemoveTool'); }
+return {go,setFilter,previewTool,requestTrial,register,verify,login,demoLogin,logout,placeOrder,generateQB,generateLesson,generateGame,previewImage,splitPreview,fakeDownloadZip,downloadText,log,adminLogin,adminLogout,adminTab,confirmOrder,cancelOrder,approveTrial,rejectTrial,viewToolkit,newToolkit,saveToolkit,editToolkit,deleteToolkit,previewReceipt,viewReceipt,previewToolkitCover,toggleToolkitStatusForm,toggleToolkitStatus,moveToolkit,resetDemo,quizScore,quizShowAnswer,quizNext,matchPick,spinWheel,checkQuest,showQuestAnswer,downloadGeneratedGame,showWheelAnswer,updateSubthemeOptions,previewGameAsset,startGeneratedGame,replayCurrentGame,enterGameFullscreen,toggleThemeMusic,finishCurrentGame,loadBgRemoveImage,downloadBgRemoved,updateRemoveLabels,fitCanvas,useSampleBgRemove,aiRemoveBackground,applyOutputBackground,callRealRemoveBgApi,saveRemoveBgApiUrl,resetBgRemoveTool,readQuestionPdf,forceReadSelectedPdf,clearQuestionPdf,loadSplitImage,generateImageSlices,downloadSlice,downloadAllSlicesZip,resetSplitter};
 })();
